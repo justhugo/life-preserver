@@ -1,0 +1,7 @@
+// Public build defaults. Local overrides are optional and never committed.
+LP_DEVELOPMENT_TEAM =
+LP_MAC_BUNDLE_IDENTIFIER = com.example.lifepreserver.mac
+LP_MOBILE_BUNDLE_IDENTIFIER = com.example.lifepreserver.mobile
+LP_CLOUD_CONTAINER_IDENTIFIER = iCloud.com.example.lifepreserver
+LP_CLOUD_SYNC_CONFIGURED = NO
+#include? "Local.xcconfig"

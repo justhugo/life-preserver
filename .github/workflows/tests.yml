@@ -1,0 +1,28 @@
+name: Swift tests
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Show Swift version
+        run: swift --version
+      - name: Run core and sync tests
+        run: swift test
+      - name: Build local Mac app
+        run: bash scripts/build.sh
+      - name: Build mobile simulator app
+        run: bash scripts/build-mobile.sh
+      - name: Verify app metadata and bundled notices
+        run: >-
+          python3 scripts/check-build-metadata.py
+          'build/Release/Life Preserver.app'
+          'build/MobileDerivedData/Build/Products/Debug-iphonesimulator/Life Preserver Mobile.app'

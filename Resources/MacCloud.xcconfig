@@ -1,0 +1,7 @@
+// Optional development configuration. The regular local Mac build is unchanged.
+#include "Signing.xcconfig"
+CODE_SIGN_ENTITLEMENTS = Resources/LifePreserverCloud.entitlements
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_IDENTITY[sdk=macosx*] = Apple Development
+CODE_SIGN_STYLE = Automatic
+LP_CLOUD_SYNC_CONFIGURED = YES
