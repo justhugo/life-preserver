@@ -35,7 +35,7 @@ The native companion can show your latest Mac readings from anywhere using optio
 
 Expand a provider card, or open Settings → Accounts, to see the specific error. An expired or revoked renewal credential requires **Reconnect** and a fresh browser sign-in; repeatedly refreshing usage cannot restore it. Reconnect the existing account rather than removing it.
 
-OpenAI helper discovery supports both the older desktop layout and the newer `codex-cli/CodexCLI.app` layout, and resolves installed desktop apps by bundle identity so app renaming does not break the connection. See [the October 7 investigation](docs/CONNECTION-INVESTIGATION-2026-10-07.md).
+OpenAI helper discovery supports both the older desktop layout and the newer `codex-cli/CodexCLI.app` layout, and resolves installed desktop apps by bundle identity so app renaming does not break the connection.
 
 ## Privacy and efficiency
 
