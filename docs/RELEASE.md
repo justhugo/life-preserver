@@ -8,7 +8,7 @@ Life Preserver 1.2.0 is a native personal development build, not an App Store su
 - Shared sessions use authenticated AES-GCM encryption, iCloud Keychain keys, and CloudKit compare-and-swap renewal leases. Local Keychain journals retain completed token rotations if saving is interrupted. Offline mobile caches remain credential-free.
 - Migrates only this app's existing sign-ins. Actual iCloud identity changes stop sharing; transient/initial account notifications no longer silently turn it off.
 - Mobile Settings reports direct provider health; Mac setup explains one-time sign-in sharing and independent mobile updates.
-- Validation: 37 tests passed, signed Mac/device builds and unsigned Mac/simulator builds succeeded, and all four providers returned live direct readings on the Mac. The update is installed on both paired mobile devices; their independent live check awaits unlock.
+- Validation: 37 tests passed, signed Mac/device builds and unsigned Mac/simulator builds succeeded, and all four providers returned live direct readings on the Mac. The update is installed on both paired mobile devices. With the Mac app stopped, the iPhone and iPad each fetched current readings directly from all four providers and completed the live verification successfully.
 
 ## Public source preparation
 
