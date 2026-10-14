@@ -69,7 +69,7 @@ struct SettingsView: View {
         case .accounts: "Your AI providers, all aboard."
         case .general: "Customize behaviors to suit your preferences."
         case .mobile: "Your reserves, wherever you are."
-        case .privacy: "Your credentials stay local and private. Full stop."
+        case .privacy: "Your sign-ins stay encrypted and private."
         }
     }
     private var availableProviders: [Provider] {
@@ -184,7 +184,7 @@ struct SettingsView: View {
             privacyItem("key", "Encrypted on your Mac", "Sign-in credentials are encrypted in macOS Keychain. Passwords and verification codes stay in your provider’s sign-in page.")
             privacyItem("arrow.triangle.branch", "A separate connection", "Each account has its own sign-in. Adding or removing it never changes your login in Codex or ChatGPT.")
             privacyItem("eye", "Only what the meter needs", "Provider names, account labels, and quota readings are saved locally. Prompts and conversations are never requested.")
-            privacyItem("icloud", "Optional private iCloud sharing", "Turn on sharing in iPhone & iPad to send provider names, plans, quota readings, and update times to your private iCloud database. Account labels, sign-in credentials, and connection error details stay on this Mac.")
+            privacyItem("icloud", "Optional direct mobile checks", "Your devices check providers directly. App-owned sign-ins are encrypted in your private iCloud database; encryption keys sync through iCloud Keychain. No plaintext credentials are uploaded.")
             Link("Read about Codex authentication ↗", destination: URL(string: "https://developers.openai.com/codex/auth")!)
                 .font(.system(size: 11)).foregroundStyle(Palette.sea)
         }

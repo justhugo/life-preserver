@@ -1,111 +1,37 @@
-# Life Preserver on iPhone and iPad
+# Direct iPhone and iPad checks
 
-The companion shows your Mac's latest provider readings from anywhere through
-your private iCloud database. It supports iOS and iPadOS 18 or later. Provider
-sign-in remains on the Mac; the companion never needs those credentials.
+Life Preserver 1.2.0 checks all four provider APIs directly on each device. The Mac is used for initial browser sign-in and setup, not as an ongoing usage bridge.
 
-## Start using it
+## Set up
 
-1. Use the same iCloud account on the Mac, iPhone, and iPad.
-2. Quit the old Life Preserver on the Mac and open
-   `build/Cloud/Life Preserver.app`. It uses your existing local connections.
-3. In **Settings → iPhone & iPad**, turn on **Share readings through iCloud**.
-   Wait for “Your mobile readings are up to date.”
-4. Open the installed **Life Preserver** companion on your phone or tablet.
-   Pull to refresh if necessary.
+1. Build/install the signed Mac and mobile apps using [BUILDING.md](BUILDING.md).
+2. Use the same iCloud account on the Mac, iPhone, and iPad, with iCloud Passwords & Keychain enabled.
+3. In the Mac app, connect providers, then enable **Settings → iPhone & iPad → Enable direct mobile checks**.
+4. Open the mobile app and pull to refresh. Initial Keychain synchronization may take time; the app distinguishes a missing encryption key from a provider error.
 
-Your Mac must be awake, online, and running Life Preserver to obtain new provider
-readings. The mobile app refreshes iCloud on opening, while active every minute,
-and when you pull to refresh. It cannot wake the Mac or refresh providers itself.
-It preserves the original provider timestamps. Readings older than 15 minutes,
-with a past reset, or with a connection problem are marked stale. A reset never
-invents a full allowance. Already loaded readings remain visible if the mobile
-connection goes offline. A disk cache is restored only after verifying the iCloud
-account, so opening the app offline before identity verification may show no data.
+Existing Life Preserver sign-ins migrate automatically. OpenAI migration reads only the exact Keychain item created for this app's own UUID connection directory; it never searches another app's credential store. New OpenAI sign-ins use native browser OAuth + PKCE without a Codex helper.
 
-Only one Mac should publish to this iCloud account. Enabling a second Mac replaces
-the single shared snapshot with that Mac's connected providers.
+After setup, the Mac can sleep or quit. Mobile refresh uses HTTPS requests to each provider, preserving the same subscription-only usage model. The mobile app checks on opening, pull to refresh, and once per minute while active. iOS controls background execution; closed-app readings are cached and marked stale when appropriate.
 
-## Appearance
+## Credential protection
 
-On the iPhone or iPad, tap the gear at the top left, then choose **System**, **Light**,
-or **Dark** under **Appearance**. The choice saves automatically on this device.
-On the Mac, use **Settings → General → Appearance**. System follows each device's
-own appearance; choose Dark on both devices to match the deep green theme, or
-Light on both to match the cream theme. Appearance preferences are not synced.
+- Credentials are encrypted with AES-GCM before reaching the private CloudKit database. Encryption authenticates the account record, provider, key ID, and session revision.
+- Random 256-bit encryption keys synchronize through iCloud Keychain. Both signed apps need the same `keychain-access-groups` entitlement and matching `LifePreserverKeychainAccessGroup` metadata. The shared group defaults to your Mac bundle identifier plus `.sessions`, prefixed by Apple's app identifier prefix.
+- No plaintext credential, provider response, or encrypted session payload is written to the mobile offline cache, Git, diagnostics, or a Life Preserver server.
+- CloudKit saves use `ifServerRecordUnchanged`. A per-session lease allows only one device to exchange a rotating refresh token. A device seeing an already-replaced rejected bearer uses the newer token instead of rotating again.
+- A completed renewal is journaled in local Keychain before its CloudKit save. Brief background execution lets a phone finish this critical save when its view closes. An interrupted or ambiguous exchange leaves the lease blocked rather than risking token reuse. Reopen the initiating device to finish a journaled save, or reconnect on the Mac if no completed response survived.
+- CloudKit identity is checked before reading cached accounts. An actual iCloud account change clears mobile cache and stops automatic Mac sharing; initial or transient account notifications do not silently disable sharing.
 
-## Connection check
+Turning direct checks off first preserves current canonical credentials locally, then removes the shared provider directory and encrypted sessions. Reconnecting a provider replaces the shared session atomically; old renewal transactions cannot overwrite the new sign-in.
 
-The gear screen shows the current app version, a short About description, and a
-**Mac connection** button. Tap it to check again. Green means the phone has
-successfully read an enabled snapshot published by the Mac within the last
-15 minutes. Gray distinguishes unchecked, waiting, stopped sharing, and an old
-Mac update. Red means the latest iCloud check failed; a brief explanation suggests
-the next step. This checks the Mac's shared readings through iCloud, rather than
-pinging the Mac directly.
+## Troubleshooting
 
-Refresh retains last-known readings if a check is interrupted. Network, iCloud
-service, account, setup, and data-format failures have separate messages; an
-interrupted check is not reported as an offline phone. Development diagnostics
-include only failure stages and error domains/codes, with no credentials or quota
-payloads.
+- **Waiting for your secure sign-in key:** confirm iCloud Passwords & Keychain on both devices; keep them online and unlocked for initial synchronization.
+- **Provider session expired:** reconnect that provider in Mac Settings → Accounts.
+- **Another device is renewing:** refresh again shortly.
+- **Renewal interrupted:** reopen the initiating device or reconnect the provider on the Mac.
+- **No accounts:** enable direct mobile checks in the updated Mac build once.
 
-## Privacy and stopping sharing
+Expand a provider card to see its specific error and last successful provider check. Mobile Settings has a brief direct-connection health indicator.
 
-Sharing is off by default. The exported snapshot includes provider names, plans,
-quota windows, update times, random account identifiers, and a connection-attention
-flag. It excludes account labels/email addresses, raw provider errors, credentials,
-prompts, and conversations. All CloudKit reads and writes use the private database.
-There is no Life Preserver account or public usage dashboard.
-
-Turning sharing off sends an empty disabled snapshot that clears the shared quotas.
-If offline, the Mac reports that clearing is pending and retries on regular
-refreshes or **Retry**, including after restart. Devices with cached data clear it
-when they next reach iCloud. Account sign-out/change clears the mobile cache and
-disables publishing until you explicitly enable it for the new account.
-
-## Build and install with Xcode
-
-Both projects read your developer team, app identifiers, and shared iCloud
-container from the ignored `Resources/Local.xcconfig`. Copy the example file and
-enter your own values before building. CloudKit requires an Apple Developer
-Program membership, an iCloud container, and provisioned signing. See
-[build and signing setup](BUILDING.md).
-
-```sh
-bash scripts/build-cloud.sh
-bash scripts/build-mobile.sh device
-```
-
-The cloud build uses `Resources/MacCloud.xcconfig` and its separate entitlements;
-the normal `scripts/build.sh` uses local ad-hoc Mac signing. Xcode
-automatic provisioning configures the development container and registers this
-Mac where necessary. Sign into your developer account in Xcode Settings if needed.
-
-Open `Mobile/LifePreserverMobile.xcodeproj`, select **LifePreserverMobile**, choose
-your connected iPhone or iPad, and run. Enable Developer Mode on the device if
-required. The development app cannot be installed by tapping an unsigned ZIP.
-
-For a simulator preview:
-
-```sh
-bash scripts/build-mobile.sh
-```
-
-Install the simulator product and launch with `--preview` for explicitly labelled
-sample data. Without this flag, the app reads your iCloud account. Simulator builds
-and local ad-hoc Mac builds cannot establish production iCloud readiness.
-
-## TestFlight or public distribution
-
-The current signed builds use the CloudKit **Development** environment. Both
-devices must use the same environment. Before TestFlight or distribution, deploy
-the `UsageSnapshot` schema (one `payload` Bytes field) to Production in CloudKit
-Console, use Production entitlements for both apps, and create the appropriate
-distribution profiles. Validate publishing, reading, account removal, stopping
-sharing, and account switching in that environment before releasing.
-
-Apple references:
-- [Private CloudKit sample and membership requirements](https://github.com/apple/sample-cloudkit-privatedb)
-- [Enable CloudKit and configure a container](https://developer.apple.com/documentation/cloudkit/enabling-cloudkit-in-your-app)
-- [CloudKit database design and environments](https://developer.apple.com/icloud/cloudkit/designing/)
+The current personal signed builds use CloudKit Development. Public/TestFlight distribution still requires the Production schema, appropriate signing, and provider-client review; see [RELEASE.md](RELEASE.md).

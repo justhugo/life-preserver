@@ -1,14 +1,9 @@
 import Foundation
 import Security
 
-struct SubscriptionCredential: Codable, Sendable {
-    var accessToken: String
-    var refreshToken: String?
-    var expiresAt: Date?
-    var email: String?
-    var plan: String?
-    var metadataCheckedAt: Date? = nil
-}
+#if SWIFT_PACKAGE
+import LifePreserverCore
+#endif
 
 enum CredentialVault {
     private static let service = "com.lifepreserver.mac.subscriptions"

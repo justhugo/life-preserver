@@ -8,7 +8,8 @@ let package = Package(
     targets: [
         .target(name: "LifePreserverCore"),
         .target(name: "LifePreserverSync", dependencies: ["LifePreserverCore"]),
-        .executableTarget(name: "LifePreserver", dependencies: ["LifePreserverCore", "LifePreserverSync"], resources: [.copy("Assets")]),
+        .target(name: "LifePreserverProviders", dependencies: ["LifePreserverCore"]),
+        .executableTarget(name: "LifePreserver", dependencies: ["LifePreserverCore", "LifePreserverSync", "LifePreserverProviders"], resources: [.copy("Assets")]),
         .testTarget(name: "LifePreserverCoreTests", dependencies: ["LifePreserverCore"]),
         .testTarget(name: "LifePreserverSyncTests", dependencies: ["LifePreserverSync", "LifePreserverCore"])
     ],

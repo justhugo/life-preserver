@@ -1,5 +1,27 @@
 // !$*UTF8*$!
 {archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+D0FF8D7D8C5CF7271F8FC431 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverProviders/ProviderHTTP.swift"; sourceTree = "<group>"; };
+21014DB87AFC24DF1DE354AC = {isa = PBXBuildFile; fileRef = D0FF8D7D8C5CF7271F8FC431; };
+AC07CFEA5891069607C04ADC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverProviders/DirectProviderClient.swift"; sourceTree = "<group>"; };
+582D6F59703AC48E77585AF0 = {isa = PBXBuildFile; fileRef = AC07CFEA5891069607C04ADC; };
+6FC937462FF2DEC972E09AD3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverSync/SharedSessionKeychain.swift"; sourceTree = "<group>"; };
+FB202548C5F012D5D5EF4015 = {isa = PBXBuildFile; fileRef = 6FC937462FF2DEC972E09AD3; };
+C9B837196D67D3366C9F4774 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverSync/SharedProviderSessions.swift"; sourceTree = "<group>"; };
+23C558E6BA9A9BD434188939 = {isa = PBXBuildFile; fileRef = C9B837196D67D3366C9F4774; };
+34F3A56BDDF68E6D5A8C4CB9 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverSync/SessionEncryption.swift"; sourceTree = "<group>"; };
+124858508734F5468EDC935E = {isa = PBXBuildFile; fileRef = 34F3A56BDDF68E6D5A8C4CB9; };
+4F06C85F7C26D2326F3CFEA3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverCore/SubscriptionSnapshot.swift"; sourceTree = "<group>"; };
+C85EE22EE2214E62782A0229 = {isa = PBXBuildFile; fileRef = 4F06C85F7C26D2326F3CFEA3; };
+35C89B7E6D7F9B65387E6B3E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverCore/ProviderCredential.swift"; sourceTree = "<group>"; };
+77292CB5A01CD58440AF1A3F = {isa = PBXBuildFile; fileRef = 35C89B7E6D7F9B65387E6B3E; };
+C24FA8AFAAFF42EE1BE42CAF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverCore/OpenAIUsageSnapshot.swift"; sourceTree = "<group>"; };
+17C0336CA0C3ADA204611AD9 = {isa = PBXBuildFile; fileRef = C24FA8AFAAFF42EE1BE42CAF; };
+CA0900828649CD30A292712B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverCore/OAuthTokenFailure.swift"; sourceTree = "<group>"; };
+155812F6BD11661BF9B50878 = {isa = PBXBuildFile; fileRef = CA0900828649CD30A292712B; };
+BBB91E6A8D73AAED95943E64 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverCore/GrokWireSnapshot.swift"; sourceTree = "<group>"; };
+813499C6F09BFEDA132845B6 = {isa = PBXBuildFile; fileRef = BBB91E6A8D73AAED95943E64; };
+7D52111EEE2271FED2F0146F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Sources/LifePreserverCore/CodexSnapshot.swift"; sourceTree = "<group>"; };
+07902C0CA9A88A0B8010EDC0 = {isa = PBXBuildFile; fileRef = 7D52111EEE2271FED2F0146F; };
 C2B9470CFF97A5D97CACD8BC = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 59CEDBE528CEA19D2700B529 = {isa = PBXFileReference; lastKnownFileType = text; path = "../Sources/LifePreserver/Assets/ThirdPartyNotices.txt"; sourceTree = "<group>"; };
 B0CD933930861CA394A4EFEC = {isa = PBXBuildFile; fileRef = 59CEDBE528CEA19D2700B529; };
@@ -22,8 +44,8 @@ DCD54C6DEEABEBB7437FCE56 = {isa = PBXFileReference; lastKnownFileType = sourceco
 1FFEE59A13F0A0B285654FA0 = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "../Resources/PrivacyInfo.xcprivacy"; sourceTree = "<group>"; };
 70D1A95392E3F6F2A19E9A02 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = "Life Preserver Mobile.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 FF007DF38181924FE6601D40 = {isa = PBXGroup; children = (70D1A95392E3F6F2A19E9A02,); name = Products; sourceTree = "<group>"; };
-86119F93BA3FD0FE7719D71C = {isa = PBXGroup; children = (C2B9470CFF97A5D97CACD8BC,59CEDBE528CEA19D2700B529,DD19CC11CD1D550F941705C9,3FF5F63E18402B83836BABED,CE9C420099C01E6B9FCB87B9,A6087F8F9F27517FE3FDF4EA,DCD54C6DEEABEBB7437FCE56,38BB0667C0E1B89D64B8DB1C,2276BC0ADF550D6FC604F90D,9A64D4CE82D783F5AFEAAD75,1FFEE59A13F0A0B285654FA0,FF007DF38181924FE6601D40,); sourceTree = "<group>"; };
-6FDDEA70ADB091A71783B001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (2A08DB7753F56BE02208013A,4EF78A9B6E91E83F1836204D,818FDEE55631446EA409D196,D72B0E35BEB46BA49A61017A,944F7C824E789127BF0A169B,031A29FA1328D92D4971A9DC,); runOnlyForDeploymentPostprocessing = 0; };
+86119F93BA3FD0FE7719D71C = {isa = PBXGroup; children = (D0FF8D7D8C5CF7271F8FC431,AC07CFEA5891069607C04ADC,6FC937462FF2DEC972E09AD3,C9B837196D67D3366C9F4774,34F3A56BDDF68E6D5A8C4CB9,4F06C85F7C26D2326F3CFEA3,35C89B7E6D7F9B65387E6B3E,C24FA8AFAAFF42EE1BE42CAF,CA0900828649CD30A292712B,BBB91E6A8D73AAED95943E64,7D52111EEE2271FED2F0146F,C2B9470CFF97A5D97CACD8BC,59CEDBE528CEA19D2700B529,DD19CC11CD1D550F941705C9,3FF5F63E18402B83836BABED,CE9C420099C01E6B9FCB87B9,A6087F8F9F27517FE3FDF4EA,DCD54C6DEEABEBB7437FCE56,38BB0667C0E1B89D64B8DB1C,2276BC0ADF550D6FC604F90D,9A64D4CE82D783F5AFEAAD75,1FFEE59A13F0A0B285654FA0,FF007DF38181924FE6601D40,); sourceTree = "<group>"; };
+6FDDEA70ADB091A71783B001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (21014DB87AFC24DF1DE354AC,582D6F59703AC48E77585AF0,FB202548C5F012D5D5EF4015,23C558E6BA9A9BD434188939,124858508734F5468EDC935E,C85EE22EE2214E62782A0229,77292CB5A01CD58440AF1A3F,17C0336CA0C3ADA204611AD9,155812F6BD11661BF9B50878,813499C6F09BFEDA132845B6,07902C0CA9A88A0B8010EDC0,2A08DB7753F56BE02208013A,4EF78A9B6E91E83F1836204D,818FDEE55631446EA409D196,D72B0E35BEB46BA49A61017A,944F7C824E789127BF0A169B,031A29FA1328D92D4971A9DC,); runOnlyForDeploymentPostprocessing = 0; };
 4FE642260118B9ECEE00D562 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B0CD933930861CA394A4EFEC,69AB727F0618C684489C7F34,AFD1AD47AA1A125E94B34681,); runOnlyForDeploymentPostprocessing = 0; };
 86C8C7885BF09A8458F4361B = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 23AD6061351361C4EAFC3CC5 = {isa = PBXNativeTarget; buildConfigurationList = BA7367085F881CA21FB3AE2C; buildPhases = (6FDDEA70ADB091A71783B001,86C8C7885BF09A8458F4361B,4FE642260118B9ECEE00D562,); buildRules = (); dependencies = (); name = LifePreserverMobile; productName = "Life Preserver Mobile"; productReference = 70D1A95392E3F6F2A19E9A02; productType = "com.apple.product-type.application"; };
@@ -32,8 +54,8 @@ FF007DF38181924FE6601D40 = {isa = PBXGroup; children = (70D1A95392E3F6F2A19E9A02
 CODE_SIGN_ENTITLEMENTS = LifePreserverMobile.entitlements;
 CODE_SIGN_STYLE = Automatic;
 DEVELOPMENT_TEAM = "$(LP_DEVELOPMENT_TEAM)";
-CURRENT_PROJECT_VERSION = 5;
-MARKETING_VERSION = 1.1.0;
+CURRENT_PROJECT_VERSION = 6;
+MARKETING_VERSION = 1.2.0;
 GENERATE_INFOPLIST_FILE = NO;
 INFOPLIST_FILE = Info.plist;
 IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -51,8 +73,8 @@ A989FA32AB9380466DD28C39 = {isa = XCBuildConfiguration; baseConfigurationReferen
 CODE_SIGN_ENTITLEMENTS = LifePreserverMobile.entitlements;
 CODE_SIGN_STYLE = Automatic;
 DEVELOPMENT_TEAM = "$(LP_DEVELOPMENT_TEAM)";
-CURRENT_PROJECT_VERSION = 5;
-MARKETING_VERSION = 1.1.0;
+CURRENT_PROJECT_VERSION = 6;
+MARKETING_VERSION = 1.2.0;
 GENERATE_INFOPLIST_FILE = NO;
 INFOPLIST_FILE = Info.plist;
 IPHONEOS_DEPLOYMENT_TARGET = 18.0;

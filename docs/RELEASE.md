@@ -1,6 +1,14 @@
 # Release status
 
-Life Preserver 1.1.0 is a native personal development build, not an App Store submission or notarized public release.
+Life Preserver 1.2.0 is a native personal development build, not an App Store submission or notarized public release.
+
+## October 14: independent mobile polling (1.2.0)
+
+- Replaced Mac-published usage snapshots with direct HTTPS provider checks on every device. OpenAI now uses native sign-in and direct subscription usage requests without a helper.
+- Shared sessions use authenticated AES-GCM encryption, iCloud Keychain keys, and CloudKit compare-and-swap renewal leases. Local Keychain journals retain completed token rotations if saving is interrupted. Offline mobile caches remain credential-free.
+- Migrates only this app's existing sign-ins. Actual iCloud identity changes stop sharing; transient/initial account notifications no longer silently turn it off.
+- Mobile Settings reports direct provider health; Mac setup explains one-time sign-in sharing and independent mobile updates.
+- Validation: 37 tests passed, signed Mac/device builds and unsigned Mac/simulator builds succeeded, and all four providers returned live direct readings on the Mac. The update is installed on both paired mobile devices; their independent live check awaits unlock.
 
 ## Public source preparation
 
@@ -60,11 +68,11 @@ Life Preserver 1.1.0 is a native personal development build, not an App Store su
 ## Before public distribution
 
 1. Review provider approval and register suitable OAuth clients or establish another supported arrangement for consumer quota endpoints. Current integrations use the provider-native compatibility flows described in PROVIDERS.md.
-2. Resolve distribution/version compatibility/licensing for the official Codex helper. The personal build locates an installed official executable.
+2. Review native OpenAI sign-in client registration and direct subscription endpoint compatibility for public distribution.
 3. Configure Developer ID or App Store signing as appropriate. Notarize direct downloads. Keep personal developer-team settings in the ignored local signing configuration.
-4. Implement and validate an App Sandbox-compatible helper/auth architecture. The personal build is not sandboxed and is not represented as App Store-ready.
+4. Validate an App Sandbox-compatible native networking and browser callback architecture. The personal build is not sandboxed and is not represented as App Store-ready.
 5. Add a public support contact/privacy policy, storefront metadata, and an update strategy.
-6. Validate optional private iCloud snapshot sharing, stopped-sharing cleanup, account switching, offline behavior, and Production schema/environment. Provider credentials remain local and are not part of the synced snapshot.
+6. Validate encrypted session sharing, stopped-sharing cleanup, account switching, interrupted renewal recovery, and the CloudKit Production schema/environment. Encryption keys synchronize through iCloud Keychain.
 7. Broaden device validation to supported Apple Silicon macOS versions, VoiceOver, multiple displays, token expiration, revoked access, provider cooldowns, login items, notifications, sleep/wake, and long-running memory/energy behavior.
 
 The project includes a privacy manifest for local UserDefaults access. Review it when dependencies or data handling change.

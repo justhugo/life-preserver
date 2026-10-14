@@ -4,4 +4,5 @@ LP_MAC_BUNDLE_IDENTIFIER = com.example.lifepreserver.mac
 LP_MOBILE_BUNDLE_IDENTIFIER = com.example.lifepreserver.mobile
 LP_CLOUD_CONTAINER_IDENTIFIER = iCloud.com.example.lifepreserver
 LP_CLOUD_SYNC_CONFIGURED = NO
+LP_SHARED_KEYCHAIN_GROUP = $(LP_MAC_BUNDLE_IDENTIFIER).sessions
 #include? "Local.xcconfig"

@@ -6,6 +6,7 @@ public enum OAuthTokenFailure {
         guard status == 400 || status == 401,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return false }
-        return json["error"] as? String == "invalid_grant"
+        let code = json["error"] as? String ?? (json["error"] as? [String: Any])?["code"] as? String
+        return ["invalid_grant", "refresh_token_expired", "refresh_token_reused", "refresh_token_invalidated"].contains(code ?? "")
     }
 }

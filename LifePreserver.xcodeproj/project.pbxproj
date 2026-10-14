@@ -29,6 +29,14 @@
 		B78BEC7B422F3D68AA39310D /* Sources/LifePreserver/MobileSharingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94E1BB88FB241EEBD9EBFFD; };
 		FABA866D78F3F6D1BB3EDAC0 /* Sources/LifePreserverCore/MobileSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 668BBBA13CC704A0E34989E7; };
 		E5E1AE862C404177177849FB /* Sources/LifePreserverSync/PrivateUsageCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 402BFD0DAA5C4821CB3AA8BD; };
+		EF23961D67B9FAD10285B051 /* Sources/LifePreserver/SubscriptionUsageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889AAF748F8404A51DC802E8; };
+		1FB959D20CCE6E3A3789EE21 /* Sources/LifePreserverCore/OpenAIUsageSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC52DD9335EF6F6D8AD2989; };
+		AF5C6061FEADB974194E101E /* Sources/LifePreserverCore/ProviderCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7419A7AC676F45F364AA20; };
+		C947C4826FC9C848EF4744E0 /* Sources/LifePreserverProviders/DirectProviderClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473DD5BAE4D895676643E0A1; };
+		A510EBD3DB88EBC0A501C154 /* Sources/LifePreserverProviders/ProviderHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41BA646703B3F1BA4E49DC9F; };
+		546F13C61049B7D66D21F12D /* Sources/LifePreserverSync/SessionEncryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1982CA581FEF30C4FEF613FB; };
+		405E741445550B9132524A9B /* Sources/LifePreserverSync/SharedProviderSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58D756EB109C2DF0D49F2E2A; };
+		559CA3915EBA57A104FE3F2D /* Sources/LifePreserverSync/SharedSessionKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF17114C49E0032A50B79A98; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -56,6 +64,14 @@
 		668BBBA13CC704A0E34989E7 /* Sources/LifePreserverCore/MobileSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverCore/MobileSnapshot.swift; sourceTree = "<group>"; };
 		402BFD0DAA5C4821CB3AA8BD /* Sources/LifePreserverSync/PrivateUsageCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverSync/PrivateUsageCloud.swift; sourceTree = "<group>"; };
 		E6B56AA9911988ED2EE7BB6F /* Resources/Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Resources/Signing.xcconfig; sourceTree = "<group>"; };
+		889AAF748F8404A51DC802E8 /* Sources/LifePreserver/SubscriptionUsageClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserver/SubscriptionUsageClient.swift; sourceTree = "<group>"; };
+		4DC52DD9335EF6F6D8AD2989 /* Sources/LifePreserverCore/OpenAIUsageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverCore/OpenAIUsageSnapshot.swift; sourceTree = "<group>"; };
+		2F7419A7AC676F45F364AA20 /* Sources/LifePreserverCore/ProviderCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverCore/ProviderCredential.swift; sourceTree = "<group>"; };
+		473DD5BAE4D895676643E0A1 /* Sources/LifePreserverProviders/DirectProviderClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverProviders/DirectProviderClient.swift; sourceTree = "<group>"; };
+		41BA646703B3F1BA4E49DC9F /* Sources/LifePreserverProviders/ProviderHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverProviders/ProviderHTTP.swift; sourceTree = "<group>"; };
+		1982CA581FEF30C4FEF613FB /* Sources/LifePreserverSync/SessionEncryption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverSync/SessionEncryption.swift; sourceTree = "<group>"; };
+		58D756EB109C2DF0D49F2E2A /* Sources/LifePreserverSync/SharedProviderSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverSync/SharedProviderSessions.swift; sourceTree = "<group>"; };
+		CF17114C49E0032A50B79A98 /* Sources/LifePreserverSync/SharedSessionKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverSync/SharedSessionKeychain.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +88,14 @@
 		B28B7AF69320201D1CF206EB = {
 			isa = PBXGroup;
 			children = (
+				CF17114C49E0032A50B79A98 /* Sources/LifePreserverSync/SharedSessionKeychain.swift */,
+				58D756EB109C2DF0D49F2E2A /* Sources/LifePreserverSync/SharedProviderSessions.swift */,
+				1982CA581FEF30C4FEF613FB /* Sources/LifePreserverSync/SessionEncryption.swift */,
+				41BA646703B3F1BA4E49DC9F /* Sources/LifePreserverProviders/ProviderHTTP.swift */,
+				473DD5BAE4D895676643E0A1 /* Sources/LifePreserverProviders/DirectProviderClient.swift */,
+				2F7419A7AC676F45F364AA20 /* Sources/LifePreserverCore/ProviderCredential.swift */,
+				4DC52DD9335EF6F6D8AD2989 /* Sources/LifePreserverCore/OpenAIUsageSnapshot.swift */,
+				889AAF748F8404A51DC802E8 /* Sources/LifePreserver/SubscriptionUsageClient.swift */,
 				E6B56AA9911988ED2EE7BB6F /* Resources/Signing.xcconfig */,
 				402BFD0DAA5C4821CB3AA8BD /* Sources/LifePreserverSync/PrivateUsageCloud.swift */,
 				668BBBA13CC704A0E34989E7 /* Sources/LifePreserverCore/MobileSnapshot.swift */,
@@ -172,6 +196,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				559CA3915EBA57A104FE3F2D /* Sources/LifePreserverSync/SharedSessionKeychain.swift in Sources */,
+				405E741445550B9132524A9B /* Sources/LifePreserverSync/SharedProviderSessions.swift in Sources */,
+				546F13C61049B7D66D21F12D /* Sources/LifePreserverSync/SessionEncryption.swift in Sources */,
+				A510EBD3DB88EBC0A501C154 /* Sources/LifePreserverProviders/ProviderHTTP.swift in Sources */,
+				C947C4826FC9C848EF4744E0 /* Sources/LifePreserverProviders/DirectProviderClient.swift in Sources */,
+				AF5C6061FEADB974194E101E /* Sources/LifePreserverCore/ProviderCredential.swift in Sources */,
+				1FB959D20CCE6E3A3789EE21 /* Sources/LifePreserverCore/OpenAIUsageSnapshot.swift in Sources */,
+				EF23961D67B9FAD10285B051 /* Sources/LifePreserver/SubscriptionUsageClient.swift in Sources */,
 				E5E1AE862C404177177849FB /* Sources/LifePreserverSync/PrivateUsageCloud.swift in Sources */,
 				FABA866D78F3F6D1BB3EDAC0 /* Sources/LifePreserverCore/MobileSnapshot.swift in Sources */,
 				B78BEC7B422F3D68AA39310D /* Sources/LifePreserver/MobileSharingView.swift in Sources */,
@@ -206,7 +238,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "$(LP_DEVELOPMENT_TEAM)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -216,7 +248,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(LP_MAC_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "Life Preserver";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -235,7 +267,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "$(LP_DEVELOPMENT_TEAM)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_TESTABILITY = YES;
@@ -246,7 +278,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(LP_MAC_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "Life Preserver";
 				PROVISIONING_PROFILE_SPECIFIER = "";

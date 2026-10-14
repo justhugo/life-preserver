@@ -12,7 +12,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
 
 The Mac script creates an Apple Silicon app and ZIP under `build/Release` using
-ad-hoc local signing. This local build does not enable iCloud publishing. Neither
+ad-hoc local signing. This local build does not enable encrypted mobile credential sharing. Neither
 these tests nor the local Mac build require an Apple Developer Program membership.
 
 The installed Mac app's minimum version is already 15.6 in both its Info.plist and
@@ -38,7 +38,7 @@ private keys, provisioning profiles, or account credentials.
 
 For an existing installation, keep its original app identifiers and iCloud
 container in your local file to retain its preferences and access to its existing
-shared readings. A developer cloning the repository should use their own unique
+shared sign-ins. A developer cloning the repository should use their own unique
 identifiers and container, rather than the public example defaults.
 
 ## iCloud-enabled Mac and device builds
@@ -69,6 +69,6 @@ builds are unsigned, so use the preview for interface checks.
 ## Public distribution
 
 Publishing this source does not produce an App Store or notarized binary release.
-Review the provider compatibility interfaces, helper architecture, signing,
+Review the provider compatibility interfaces, native OAuth callbacks, Keychain sharing, signing,
 CloudKit Production schema/environment, privacy metadata, and distribution steps
 in [release status](RELEASE.md) before shipping binaries to other users.

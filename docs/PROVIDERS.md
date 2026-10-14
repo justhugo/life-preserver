@@ -6,7 +6,9 @@ Reviewed September 9–10, 2026. Only subscription allowances are displayed. No 
 
 [Official app-server documentation](https://developers.openai.com/codex/app-server) and [authentication](https://developers.openai.com/codex/auth).
 
-Life Preserver initializes an isolated official app-server as `life_preserver`, uses account login/read/rate-limit/logout methods, and requires Keychain storage. The helper exits after polling. The parser prefers `rateLimitsByLimitId` and falls back to `rateLimits`; actual durations determine labels. The main pool supplies the overview; reserve/model pools only appear expanded. Missing session values remain unknown even when weekly data exists. These are the allowances returned by the coding/Work integration, not a fabricated claim about every ChatGPT feature limit.
+Life Preserver 1.2.0 uses native HTTPS `GET https://chatgpt.com/backend-api/wham/usage`, Bearer authentication, and the session's `ChatGPT-Account-Id` when present. `rate_limit.primary_window`, `secondary_window`, and additional model limits supply subscription windows; credits and on-demand balances are excluded. This compatibility endpoint is also used by [CodexBar's direct usage client](https://github.com/steipete/CodexBar/blob/main/Sources/CodexBarCore/Providers/Codex/CodexOAuth/CodexOAuthUsageFetcher.swift).
+
+Browser authorization uses OpenAI's native public client, PKCE/state, and the fixed localhost callback. Code exchange is form-encoded; token refresh is JSON, matching [OpenAI's login implementation](https://github.com/openai/codex/tree/main/codex-rs/login/src). No helper process is launched. Existing Life Preserver-owned isolated sessions are migrated by their exact scoped Keychain item, without enumerating Keychain or reading another app's login. These allowances remain the coding/Work subscription integration's reported windows, not a claim about every ChatGPT feature limit.
 
 ## Claude
 
@@ -36,6 +38,6 @@ Usage comes from `aiserver.v1.DashboardService/GetSandUsageStatus` on api2.curso
 
 ## Distribution boundary
 
-These consumer compatibility interfaces are not documented, registered Life Preserver OAuth applications. Provider consent screens can name their native clients; behavior may change. Before public distribution, review provider authorization/terms, obtain appropriate client registration or another supported arrangement, and complete the App Sandbox/helper work. This limitation does not justify replacing working subscription meters with manual trackers.
+These consumer compatibility interfaces are not documented, registered Life Preserver OAuth applications. Provider consent screens can name their native clients; behavior may change. Before public distribution, review provider authorization/terms, obtain appropriate client registration or another supported arrangement, and complete sandbox and distribution validation. This limitation does not justify replacing working subscription meters with manual trackers.
 
 Provider names and logos remain their owners’ trademarks. The bundled OpenAI, Claude, and Grok SVG path data comes from the MIT-licensed [Lobe Icons](https://github.com/lobehub/lobe-icons) project; the pinned upstream revision, adaptations, and copyright/license notice are recorded in `Sources/LifePreserver/Assets/ThirdPartyNotices.txt` and bundled in both apps. This licenses the icon data and does not grant provider trademark rights or imply endorsement. The Life Preserver icon is original code-rendered artwork.

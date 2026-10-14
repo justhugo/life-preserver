@@ -19,9 +19,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.0</string>
+	<string>1.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>3</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.6</string>
 	<key>LSUIElement</key>
@@ -36,5 +36,7 @@
 	<string>$(LP_CLOUD_SYNC_CONFIGURED)</string>
 	<key>LifePreserverCloudContainerIdentifier</key>
 	<string>$(LP_CLOUD_CONTAINER_IDENTIFIER)</string>
+	<key>LifePreserverKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)$(LP_SHARED_KEYCHAIN_GROUP)</string>
 </dict>
 </plist>

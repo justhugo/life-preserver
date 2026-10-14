@@ -30,14 +30,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var menuTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--check-direct") {
+            Task {
+                if CommandLine.arguments.contains("--prepare-direct") {
+                    UserDefaults.standard.set(true, forKey: "mobileSharingEnabled")
+                }
+                let check = AppStore(diagnostic: true)
+                await check.refresh()
+                for account in check.accounts {
+                    print("Direct provider check: \(account.provider.rawValue): \(account.error ?? (account.updatedAt == nil ? "no reading" : "success"))")
+                }
+                check.mobileSharing.retry()
+                await Task.yield()
+                for _ in 0..<30 {
+                    if !check.mobileSharing.busy { break }
+                    try? await Task.sleep(for: .seconds(1))
+                }
+                print("Mobile sign-ins: \(check.mobileSharing.status)")
+                check.shutdown()
+                NSApp.terminate(nil)
+            }
+            return
+        }
         // Read-only deployment check: no account store, provider refresh or upload.
         if CommandLine.arguments.contains("--check-icloud") {
             Task {
                 do {
                     let cloud = PrivateUsageCloud()
                     _ = try await cloud.ownerID()
-                    let snapshot = try await cloud.fetch()
-                    print("iCloud available. Shared readings: \(snapshot == nil ? "none yet" : snapshot!.sharingEnabled ? "enabled" : "disabled").")
+                    let accounts = try await SharedProviderSessions.shared.accounts()
+                    print("iCloud available. Shared provider connections: \(accounts.count).")
                 } catch { print(PrivateUsageCloud.message(for: error)) }
                 NSApp.terminate(nil)
             }

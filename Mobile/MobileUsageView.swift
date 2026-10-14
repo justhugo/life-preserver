@@ -45,26 +45,25 @@ struct MobileUsageView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if store.preview { note("Sample data", symbol: "sparkles") }
                     if let message = store.message { note(message, symbol: "icloud.slash") }
-                    if let snapshot = store.snapshot, snapshot.sharingEnabled, !snapshot.accounts.isEmpty {
+                    if !store.accounts.isEmpty {
                         TimelineView(.periodic(from: .now, by: 30)) { context in
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 310), spacing: 12)], alignment: .leading, spacing: 12) {
-                                ForEach(snapshot.accounts) { item in
-                                    MobileAccountCard(account: item.displayAccount, now: context.date)
+                                ForEach(store.accounts) { item in
+                                    MobileAccountCard(account: item, now: context.date)
                                 }
                             }
                         }
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("Shared by your Mac \(snapshot.publishedAt.formatted(date: .abbreviated, time: .shortened))")
-                            if let date = store.lastChecked { Text("iCloud checked \(date.formatted(date: .omitted, time: .shortened))") }
-                            Text("Pull to refresh. Your Mac updates provider readings while it’s awake and Life Preserver is running.")
+                            if let date = store.lastChecked { Text("Providers checked \(date.formatted(date: .abbreviated, time: .shortened))") }
+                            Text("Pull to refresh. This device checks providers directly; your Mac can be asleep.")
                         }.font(.footnote).foregroundStyle(MobilePalette.secondary)
                     } else {
                         VStack(alignment: .leading, spacing: 15) {
                             Image(systemName: "icloud").font(.largeTitle).foregroundStyle(MobilePalette.sea)
-                            Text(store.snapshot?.sharingEnabled == false ? "Sharing is off." : "Let’s get you connected.").font(.system(.title2, design: .serif))
-                            Text("On your Mac, open Life Preserver → Settings → iPhone & iPad and turn on sharing. Use the same iCloud account on both devices.")
-                            Text("Your provider sign-ins stay on your Mac. This companion receives only your latest usage readings.").foregroundStyle(MobilePalette.secondary)
-                            Button("Check iCloud") { Task { await store.refresh() } }.buttonStyle(.borderedProminent).disabled(store.refreshing)
+                            Text("Let’s get you connected.").font(.system(.title2, design: .serif))
+                            Text("Open the updated Mac app once, then enable direct mobile checks in Settings → iPhone & iPad. Use the same iCloud account and turn on iCloud Passwords & Keychain.")
+                            Text("Your devices share encrypted sign-ins and each retrieves current usage independently.").foregroundStyle(MobilePalette.secondary)
+                            Button("Check connections") { Task { await store.refresh() } }.buttonStyle(.borderedProminent).disabled(store.refreshing)
                         }.padding(22).frame(maxWidth: .infinity, alignment: .leading).background(MobilePalette.card, in: RoundedRectangle(cornerRadius: 20))
                     }
                 }.padding(20).frame(maxWidth: 1000).frame(maxWidth: .infinity)
@@ -86,7 +85,7 @@ struct MobileUsageView: View {
                     Button("Settings", systemImage: "gearshape") { showSettings = true }.labelStyle(.iconOnly)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if store.refreshing { ProgressView().accessibilityLabel("Checking iCloud") }
+                    if store.refreshing { ProgressView().accessibilityLabel("Checking providers") }
                     else { Button("Refresh", systemImage: "arrow.clockwise") { Task { await store.refresh() } }.labelStyle(.iconOnly) }
                 }
             }
@@ -106,7 +105,7 @@ struct MobileUsageView: View {
                             Text("Version \(appVersion)").font(.caption).foregroundStyle(MobilePalette.secondary)
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("About").font(.headline)
-                                Text("Life Preserver keeps your remaining AI subscription usage in one place. This companion shows the latest readings your Mac shares through iCloud.")
+                                Text("Life Preserver keeps your remaining AI subscription usage in one place. Each device checks providers directly, using sign-ins shared securely through iCloud and Keychain.")
                                     .font(.subheadline).foregroundStyle(MobilePalette.secondary)
                             }
                             TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -135,45 +134,25 @@ struct MobileUsageView: View {
     }
 
     private func connectionStatus(at now: Date) -> some View {
-        let state = MobileLinkState.evaluate(snapshot: store.snapshot, lastChecked: store.lastChecked, checkFailed: store.checkFailed, at: now)
-        let color = state == .healthy && !store.preview ? MobilePalette.green : state == .failed ? MobilePalette.red : MobilePalette.secondary
-        let title = store.preview ? "Sample preview" : store.refreshing ? "Checking connection…" : state.title
+        let healthy = !store.accounts.isEmpty && store.accounts.allSatisfy { $0.error == nil && !$0.isStale(at: now) }
+        let color = healthy && !store.preview ? MobilePalette.green : store.checkFailed ? MobilePalette.red : MobilePalette.secondary
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Mac connection").font(.headline)
+            Text("Provider connections").font(.headline)
             Button { Task { await store.refresh() } } label: {
                 HStack(spacing: 8) {
                     if store.refreshing { ProgressView().controlSize(.small).tint(color) }
-                    else { Image(systemName: state == .healthy && !store.preview ? "checkmark.circle.fill" : state == .failed ? "exclamationmark.circle" : "circle.dashed") }
-                    Text(title).font(.subheadline.weight(.medium))
+                    else { Image(systemName: healthy ? "checkmark.circle.fill" : "exclamationmark.circle") }
+                    Text(store.preview ? "Sample preview" : store.refreshing ? "Checking providers…" : healthy ? "Direct checks are healthy" : "Connections need attention")
+                        .font(.subheadline.weight(.medium))
                     Spacer(minLength: 8)
                     Image(systemName: "arrow.clockwise").font(.caption)
-                }.padding(12).foregroundStyle(color)
-                    .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                }.padding(12).foregroundStyle(color).background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }.buttonStyle(.plain).disabled(store.refreshing || store.preview)
-                .accessibilityHint("Check the Mac’s shared readings through iCloud again")
-            if store.preview {
-                Text("The connection isn’t checked in sample previews.").font(.caption).foregroundStyle(MobilePalette.secondary)
-            } else {
-                if let date = store.snapshot?.publishedAt, store.snapshot?.sharingEnabled == true {
-                    Text("Last shared \(date.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(MobilePalette.secondary)
-                }
-                Text(connectionHelp(for: state)).font(.caption).foregroundStyle(MobilePalette.secondary)
-            }
+            Text("Checks run on this device. Your Mac doesn’t need to be awake. If a sign-in key is still syncing, confirm iCloud Passwords & Keychain is on. Expand a provider card for any connection error.")
+                .font(.caption).foregroundStyle(MobilePalette.secondary)
         }
     }
 
-    private func connectionHelp(for state: MobileLinkState) -> String {
-        switch state {
-        case .healthy: return "Via iCloud. Tap above to check again."
-        case .unchecked: return "Tap above to check iCloud for your Mac’s latest readings."
-        case .waiting, .sharingOff:
-            return "Turn on sharing in your Mac’s Settings → iPhone & iPad. Use the same iCloud account on both devices."
-        case .stale:
-            return "Make sure your Mac is awake, online, and running Life Preserver, then tap above to retry."
-        case .failed:
-            return store.message ?? "Check iCloud on this device, then tap above to retry."
-        }
-    }
 }
 
 private struct MobileAccountCard: View {

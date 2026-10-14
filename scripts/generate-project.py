@@ -46,7 +46,7 @@ for mode in ['Debug', 'Release']:
         CODE_SIGN_ENTITLEMENTS = Resources/LifePreserver.entitlements;
         ENABLE_HARDENED_RUNTIME = YES; COMBINE_HIDPI_IMAGES = YES;
         SWIFT_EMIT_LOC_STRINGS = YES; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-        CURRENT_PROJECT_VERSION = 2; MARKETING_VERSION = 1.1.0;
+        CURRENT_PROJECT_VERSION = 3; MARKETING_VERSION = 1.2.0;
         '''
     target_settings += 'SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; ENABLE_TESTABILITY = YES;' if mode == 'Debug' else 'SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_COMPILATION_MODE = wholemodule;'
     project_configs.append(obj('project'+mode, f'isa = XCBuildConfiguration; name = {mode}; buildSettings = {{ {project_settings} }};'))

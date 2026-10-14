@@ -4,6 +4,8 @@ import ServiceManagement
 import UserNotifications
 #if SWIFT_PACKAGE
 import LifePreserverCore
+import LifePreserverProviders
+import LifePreserverSync
 #endif
 
 @MainActor
@@ -29,14 +31,10 @@ final class AppStore: ObservableObject {
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled
     var onShowSettings: (() -> Void)?
     var onShowPanel: (() -> Void)?
-    private var bridges: [UUID: CodexBridge] = [:]
     private var connectionEpochs: [UUID: UUID] = [:]
     private let subscriptionsClient = SubscriptionUsageClient()
     private var subscriptionSignIn: SubscriptionSignIn?
     private var subscriptionTask: Task<Void, Never>?
-    private var loginBridge: CodexBridge?
-    private var loginID: String?
-    private var loginTimeout: Task<Void, Never>?
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
     private var powerObserver: NSObjectProtocol?
@@ -44,7 +42,7 @@ final class AppStore: ObservableObject {
     private let previewOnly: Bool
     private var ignoredConnections: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "ignoredConnections") ?? [])
 
-    init(preview: Bool = false) {
+    init(preview: Bool = false, diagnostic: Bool = false) {
         previewOnly = preview
         let defaults = UserDefaults.standard
         let interval = defaults.integer(forKey: "refreshMinutes")
@@ -54,12 +52,13 @@ final class AppStore: ObservableObject {
         notificationsEnabled = defaults.bool(forKey: "notificationsEnabled")
         if preview { demo = true; return }
         load()
+        if diagnostic { return }
         mobileSharing.update(accounts)
         showOnboarding = accounts.isEmpty && !defaults.bool(forKey: "onboarded")
         scheduleRefresh()
         let center = NSWorkspace.shared.notificationCenter
         observers.append(center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.timer?.invalidate(); self?.subscriptionsClient.cancelAll(); self?.bridges.values.forEach { $0.stop() } }
+            Task { @MainActor in self?.timer?.invalidate(); self?.subscriptionsClient.cancelAll() }
         })
         observers.append(center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.scheduleRefresh(); await self?.refresh() }
@@ -123,16 +122,12 @@ final class AppStore: ObservableObject {
         let epoch = connectionEpochs[id]
         do {
             let windows: [UsageWindow]
-            if previous.kind == .codex {
-                windows = try await bridge(for: id).readUsage()
-            } else {
-                let (credential, reading) = try await subscriptionsClient.read(previous)
-                windows = reading
-                guard connectionEpochs[id] == epoch else { return }
-                if let index = accounts.firstIndex(where: { $0.id == id }) {
-                    accounts[index].label = credential.email ?? accounts[index].label
-                    accounts[index].plan = credential.plan ?? accounts[index].plan
-                }
+            let (credential, reading) = try await subscriptionsClient.read(previous)
+            windows = reading
+            guard connectionEpochs[id] == epoch else { return }
+            if let index = accounts.firstIndex(where: { $0.id == id }) {
+                accounts[index].label = credential.email ?? accounts[index].label
+                accounts[index].plan = credential.plan ?? accounts[index].plan
             }
             guard connectionEpochs[id] == epoch, let index = accounts.firstIndex(where: { $0.id == id }) else { return }
             accounts[index].windows = windows
@@ -146,112 +141,32 @@ final class AppStore: ObservableObject {
             if (error as? URLError)?.code == .cancelled { return }
             if connectionEpochs[id] == epoch, let index = accounts.firstIndex(where: { $0.id == id }) { accounts[index].error = error.localizedDescription }
         }
-        // No persistent helper or network connection while the app is idle.
-        if previous.kind == .codex { bridges[id]?.stop() }
     }
 
-    func connectCodex(replacing id: UUID? = nil) {
-        guard !connecting, !previewOnly else { return }
-        connecting = true; connectingProvider = .openai; connectionError = nil
-        let connection = CodexBridge(accountID: id ?? UUID())
-        loginBridge = connection
-        connection.onLogin = { [weak self, weak connection] success in
-            guard let self, let connection, self.loginBridge === connection else { return }
-            if success { Task { await self.completeLogin(connection) } }
-            else { self.connectionError = "Sign-in wasn’t completed. You can try again whenever you’re ready."; self.finishLogin() }
-        }
-        Task {
-            do {
-                let id = try await connection.signIn()
-                guard self.loginBridge === connection else { return }
-                loginID = id
-                loginTimeout = Task {
-                    do { try await Task.sleep(for: .seconds(180)) } catch { return }
-                    guard self.loginBridge === connection else { return }
-                    self.cancelLogin()
-                    self.connectionError = "Sign-in timed out. Please try again."
-                }
-            } catch {
-                guard self.loginBridge === connection else { return }
-                connectionError = error.localizedDescription; finishLogin()
-            }
-        }
-    }
+    func connectCodex(replacing id: UUID? = nil) { connect(.openai, replacing: id) }
 
-    private func completeLogin(_ connection: CodexBridge) async {
-        loginTimeout?.cancel()
-        // Verify the newly saved Keychain session through a fresh helper. Some helper
-        // versions briefly retain the pre-login account cache after the success event.
-        connection.onLogin = nil
-        connection.stop()
-        do {
-            let (email, plan) = try await connection.readAccount()
-            guard loginBridge === connection else { return }
-            let account = ProviderAccount(id: connection.accountID, provider: .openai, kind: .codex, label: email, plan: plan)
-            if let index = accounts.firstIndex(where: { $0.id == account.id }) { accounts[index] = account }
-            else { accounts.append(account) }
-            bridges[account.id] = connection
-            demo = false; save()
-            connecting = false; connectingProvider = nil; loginBridge = nil; loginID = nil; connection.onLogin = nil
-            await refreshAccount(account.id); save()
-        } catch {
-            guard loginBridge === connection else { return }
-            connectionError = "Your browser sign-in finished, but the account hasn’t settled yet. Reopen Life Preserver to resume securely."
-            finishLogin()
-        }
-    }
-
-    /// Recover sign-ins saved by the helper before a crash or interrupted UI callback.
-    /// These are exclusively this app's own UUID directories, never another app's login.
+    /// Recover only Life Preserver's own legacy connection directories.
     func restoreConnections() async {
         guard !previewOnly, !connecting, accounts.isEmpty else { return }
         let directory = Self.supportDirectory.appendingPathComponent("Connections")
         guard let folders = try? FileManager.default.contentsOfDirectory(at: directory,
-            includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else { return }
+            includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { return }
         for folder in folders {
-            guard let id = UUID(uuidString: folder.lastPathComponent),
-                  !ignoredConnections.contains(id.uuidString),
-                  !accounts.contains(where: { $0.id == id }) else { continue }
-            let connection = bridge(for: id)
-            do {
-                let (email, plan) = try await connection.readAccount()
-                guard !accounts.contains(where: { $0.id == id }), !ignoredConnections.contains(id.uuidString) else { connection.stop(); continue }
-                accounts.append(ProviderAccount(id: id, provider: .openai, kind: .codex, label: email, plan: plan))
-                save()
-                await refreshAccount(id); save()
-                break
-            } catch { connection.stop(); bridges.removeValue(forKey: id) }
+            guard let id = UUID(uuidString: folder.lastPathComponent), !ignoredConnections.contains(id.uuidString),
+                  let credential = try? LegacyOpenAISession.importOwned(account: id) else { continue }
+            accounts.append(ProviderAccount(id: id, provider: .openai, kind: .codex,
+                label: credential.email ?? "Personal", plan: credential.plan ?? "ChatGPT"))
+            save(); await refreshAccount(id); save(); break
         }
     }
 
     func cancelLogin() {
-        if let subscriptionSignIn {
-            subscriptionTask?.cancel(); subscriptionSignIn.cancel()
-            self.subscriptionSignIn = nil; connecting = false; connectingProvider = nil
-        }
-        guard let connection = loginBridge else { return }
-        let id = loginID
-        ignoredConnections.insert(connection.accountID.uuidString)
-        UserDefaults.standard.set(Array(ignoredConnections), forKey: "ignoredConnections")
-        connection.onLogin = nil
-        loginBridge = nil; loginID = nil; connecting = false; connectingProvider = nil; loginTimeout?.cancel()
-        Task {
-            if let id { _ = try? await connection.request("account/login/cancel", params: ["loginId": id]) }
-            connection.stop()
-        }
-    }
-    private func finishLogin() {
-        loginTimeout?.cancel(); loginBridge?.onLogin = nil; loginBridge?.stop()
-        loginBridge = nil; loginID = nil; connecting = false; connectingProvider = nil
-    }
-    private func bridge(for id: UUID) -> CodexBridge {
-        if let bridge = bridges[id] { return bridge }
-        let bridge = CodexBridge(accountID: id); bridges[id] = bridge; return bridge
+        subscriptionTask?.cancel(); subscriptionSignIn?.cancel()
+        subscriptionSignIn = nil; connecting = false; connectingProvider = nil
     }
 
     func connect(_ provider: Provider, replacing id: UUID? = nil) {
         guard !connecting else { return }
-        if provider == .openai { connectCodex(replacing: id); return }
         guard !previewOnly else { return }
         let signIn = SubscriptionSignIn()
         subscriptionSignIn = signIn
@@ -269,9 +184,14 @@ final class AppStore: ObservableObject {
                 guard self.subscriptionSignIn === signIn else { return }
                 subscriptionsClient.invalidate(accountID)
                 connectionEpochs[accountID] = UUID()
+                if SubscriptionUsageClient.sharingEnabled {
+                    let owner = try await MobileSharing.validateOwner()
+                    try await SharedProviderSessions.shared.share(credential,
+                        account: SharedProviderAccount(id: accountID, provider: provider, plan: credential.plan ?? ""), expectedOwner: owner, replacing: true)
+                }
                 try CredentialVault.save(credential, account: accountID)
                 let account = ProviderAccount(id: accountID, provider: provider,
-                    kind: provider == .claude ? .claudeOAuth : provider == .grokBot ? .grokBotOAuth : .grokOAuth,
+                    kind: provider == .openai ? .codex : provider == .claude ? .claudeOAuth : provider == .grokBot ? .grokBotOAuth : .grokOAuth,
                     label: credential.email ?? "Personal", plan: credential.plan ?? "")
                 if let index = accounts.firstIndex(where: { $0.id == accountID }) { accounts[index] = account }
                 else { accounts.append(account) }
@@ -284,17 +204,11 @@ final class AppStore: ObservableObject {
     }
 
     func remove(_ account: ProviderAccount) async {
-        if account.kind == .codex {
+        if account.kind != .manual && account.kind != .demo {
             do {
-                let connection = bridge(for: account.id)
-                try await connection.start()
-                _ = try await connection.request("account/logout")
-                connection.stop(); bridges.removeValue(forKey: account.id)
-            } catch { connectionError = "Couldn’t securely sign out. \(error.localizedDescription)"; return }
-        }
-        if account.kind == .claudeOAuth || account.kind == .grokOAuth || account.kind == .grokBotOAuth {
-            do { try subscriptionsClient.disconnect(account.id) }
-            catch { connectionError = error.localizedDescription; return }
+                if SubscriptionUsageClient.sharingEnabled { try await SharedProviderSessions.shared.remove(account.id) }
+                try subscriptionsClient.disconnect(account.id)
+            } catch { connectionError = error.localizedDescription; return }
         }
         accounts.removeAll { $0.id == account.id }; save()
     }
@@ -334,8 +248,7 @@ final class AppStore: ObservableObject {
     }
     func shutdown() {
         mobileSharing.shutdown()
-        timer?.invalidate(); subscriptionsClient.cancelAll(); subscriptionTask?.cancel(); subscriptionSignIn?.cancel(); loginTimeout?.cancel(); loginBridge?.stop()
-        bridges.values.forEach { $0.stop() }
+        timer?.invalidate(); subscriptionsClient.cancelAll(); subscriptionTask?.cancel(); subscriptionSignIn?.cancel()
         observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
         if let powerObserver { NotificationCenter.default.removeObserver(powerObserver) }
     }
