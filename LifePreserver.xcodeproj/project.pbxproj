@@ -16,7 +16,7 @@
 		8421D7F672740914C0692B14 /* Sources/LifePreserverCore/SubscriptionSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C434A08C6FC6DBB276A200A3 /* Sources/LifePreserverCore/SubscriptionSnapshot.swift */; };
 		8D7A5FDBD7B593BE97B3C430 /* Sources/LifePreserver/AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F48B5957FBCB3789DCB728 /* Sources/LifePreserver/AppStore.swift */; };
 		98D3F4D0014C58A5E1364B32 /* Sources/LifePreserver/CredentialVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37485D59A681DE1E19C5DF7B /* Sources/LifePreserver/CredentialVault.swift */; };
-		B534411418042CDB5FC8A940 /* Sources/LifePreserver/CodexBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E7A45517AC5CF1111371EA /* Sources/LifePreserver/CodexBridge.swift */; };
+		B534411418042CDB5FC8A940 /* Sources/LifePreserver/LegacyOpenAISession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E7A45517AC5CF1111371EA /* Sources/LifePreserver/LegacyOpenAISession.swift */; };
 		B964C344BE508A8DD5516878 /* Sources/LifePreserverCore/CodexSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 382E24B9B06A2AC773D235C5 /* Sources/LifePreserverCore/CodexSnapshot.swift */; };
 		BB6FC60D432B4B2650F25A07 /* Sources/LifePreserverCore/Usage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4FE611EC47118353F23848 /* Sources/LifePreserverCore/Usage.swift */; };
 		C3074B37E57035C67B0F59DF /* Sources/LifePreserver/Assets in Resources */ = {isa = PBXBuildFile; fileRef = 8AE88BBF4ACA2C06F400ED7D /* Sources/LifePreserver/Assets */; };
@@ -46,7 +46,7 @@
 		382E24B9B06A2AC773D235C5 /* Sources/LifePreserverCore/CodexSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverCore/CodexSnapshot.swift; sourceTree = "<group>"; };
 		38A007151ABE87CC01A5B6E9 /* Life Preserver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = "Life Preserver.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		487119859A484CF7114D271D /* Sources/LifePreserver/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserver/SettingsView.swift; sourceTree = "<group>"; };
-		48E7A45517AC5CF1111371EA /* Sources/LifePreserver/CodexBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserver/CodexBridge.swift; sourceTree = "<group>"; };
+		48E7A45517AC5CF1111371EA /* Sources/LifePreserver/LegacyOpenAISession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserver/LegacyOpenAISession.swift; sourceTree = "<group>"; };
 		6B28BB9467CD46A0F6545DA6 /* Sources/LifePreserver/LifePreserverApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserver/LifePreserverApp.swift; sourceTree = "<group>"; };
 		7B4FE611EC47118353F23848 /* Sources/LifePreserverCore/Usage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserverCore/Usage.swift; sourceTree = "<group>"; };
 		7BC2FCA56A3B7AEBE466CD2C /* Sources/LifePreserver/Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LifePreserver/Design.swift; sourceTree = "<group>"; };
@@ -109,7 +109,7 @@
 				F702750B60D7D6528F2422CB /* Sources/LifePreserver/SubscriptionConnection.swift */,
 				37485D59A681DE1E19C5DF7B /* Sources/LifePreserver/CredentialVault.swift */,
 				84F48B5957FBCB3789DCB728 /* Sources/LifePreserver/AppStore.swift */,
-				48E7A45517AC5CF1111371EA /* Sources/LifePreserver/CodexBridge.swift */,
+				48E7A45517AC5CF1111371EA /* Sources/LifePreserver/LegacyOpenAISession.swift */,
 				7BC2FCA56A3B7AEBE466CD2C /* Sources/LifePreserver/Design.swift */,
 				6B28BB9467CD46A0F6545DA6 /* Sources/LifePreserver/LifePreserverApp.swift */,
 				8249F6178D1C2614345B2687 /* Sources/LifePreserver/OnboardingView.swift */,
@@ -215,7 +215,7 @@
 				C6D3E7E83F38AF5E24CFA86F /* Sources/LifePreserver/SubscriptionConnection.swift in Sources */,
 				98D3F4D0014C58A5E1364B32 /* Sources/LifePreserver/CredentialVault.swift in Sources */,
 				8D7A5FDBD7B593BE97B3C430 /* Sources/LifePreserver/AppStore.swift in Sources */,
-				B534411418042CDB5FC8A940 /* Sources/LifePreserver/CodexBridge.swift in Sources */,
+				B534411418042CDB5FC8A940 /* Sources/LifePreserver/LegacyOpenAISession.swift in Sources */,
 				0B221D4E97F08B00D64BAB30 /* Sources/LifePreserver/Design.swift in Sources */,
 				735894293E1AAEDFA9B86081 /* Sources/LifePreserver/LifePreserverApp.swift in Sources */,
 				F5CBA55B5406743A8D794B77 /* Sources/LifePreserver/OnboardingView.swift in Sources */,
@@ -238,7 +238,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "$(LP_DEVELOPMENT_TEAM)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -267,7 +267,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "$(LP_DEVELOPMENT_TEAM)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_TESTABILITY = YES;

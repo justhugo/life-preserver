@@ -55,13 +55,12 @@ struct MobileUsageView: View {
                         }
                         VStack(alignment: .leading, spacing: 5) {
                             if let date = store.lastChecked { Text("Providers checked \(date.formatted(date: .abbreviated, time: .shortened))") }
-                            Text("Pull to refresh. This device checks providers directly; your Mac can be asleep.")
                         }.font(.footnote).foregroundStyle(MobilePalette.secondary)
                     } else {
                         VStack(alignment: .leading, spacing: 15) {
                             Image(systemName: "icloud").font(.largeTitle).foregroundStyle(MobilePalette.sea)
                             Text("Let’s get you connected.").font(.system(.title2, design: .serif))
-                            Text("Open the updated Mac app once, then enable direct mobile checks in Settings → iPhone & iPad. Use the same iCloud account and turn on iCloud Passwords & Keychain.")
+                            Text("Open the Mac app once, then enable direct mobile checks in Settings → iPhone & iPad. Use the same iCloud account and turn on iCloud Passwords & Keychain.")
                             Text("Your devices share encrypted sign-ins and each retrieves current usage independently.").foregroundStyle(MobilePalette.secondary)
                             Button("Check connections") { Task { await store.refresh() } }.buttonStyle(.borderedProminent).disabled(store.refreshing)
                         }.padding(22).frame(maxWidth: .infinity, alignment: .leading).background(MobilePalette.card, in: RoundedRectangle(cornerRadius: 20))
@@ -148,7 +147,7 @@ struct MobileUsageView: View {
                     Image(systemName: "arrow.clockwise").font(.caption)
                 }.padding(12).foregroundStyle(color).background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }.buttonStyle(.plain).disabled(store.refreshing || store.preview)
-            Text("Checks run on this device. Your Mac doesn’t need to be awake. If a sign-in key is still syncing, confirm iCloud Passwords & Keychain is on. Expand a provider card for any connection error.")
+            Text("If a sign-in key is still syncing, confirm iCloud Passwords & Keychain is on. Expand a provider card for connection details.")
                 .font(.caption).foregroundStyle(MobilePalette.secondary)
         }
     }

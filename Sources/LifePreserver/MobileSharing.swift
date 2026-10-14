@@ -95,7 +95,7 @@ final class MobileSharing: ObservableObject {
                     try Task.checkCancellation()
                     try await SharedProviderSessions.shared.setAccounts(directory)
                     lastPublished = Date()
-                    status = "Secure sign-ins are ready. Your iPhone and iPad check providers directly, even while this Mac is asleep."
+                    status = "Secure sign-ins are ready for direct checks on your devices."
                 } catch { if !Task.isCancelled { status = Self.message(error) } }
             }
         }

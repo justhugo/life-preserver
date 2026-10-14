@@ -1,8 +1,6 @@
 # Build and signing setup
 
-Life Preserver's Mac app requires macOS 15.6 or later. The iPhone/iPad companion
-requires iOS/iPadOS 18 or later. Use Xcode with Swift 6 support and the relevant
-platform SDKs. The repository has no third-party runtime dependencies.
+Use Xcode with Swift 6 support and the macOS/iOS SDKs. Life Preserver requires Apple Silicon and macOS 15.6 or later on Mac, and iOS/iPadOS 18 or later on mobile. The repository has no third-party runtime dependencies.
 
 ## Local Mac app and tests
 
@@ -11,50 +9,40 @@ bash scripts/build.sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
 
-The Mac script creates an Apple Silicon app and ZIP under `build/Release` using
-ad-hoc local signing. This local build does not enable encrypted mobile credential sharing. Neither
-these tests nor the local Mac build require an Apple Developer Program membership.
+The build script creates an Apple Silicon app and ZIP in `build/Release` using ad-hoc signing. The local Mac build and tests require no Apple developer account. Use the signed builds below for iCloud credential sharing and mobile installation.
 
-The installed Mac app's minimum version is already 15.6 in both its Info.plist and
-target deployment settings. The earlier README claim of macOS 14 support was
-incorrect. The core Swift package's macOS 15 minimum is for its libraries/tests;
-it does not lower the bundled Mac app's 15.6 requirement.
+The core Swift package targets macOS 15 for libraries and tests; the bundled Mac app requires macOS 15.6.
 
-## Personal signing configuration
+## Signing configuration
 
-Copy `Resources/Local.xcconfig.example` to `Resources/Local.xcconfig`, then set:
+Copy `Resources/Local.xcconfig.example` to `Resources/Local.xcconfig`, then configure:
 
 | Setting | Value |
 | --- | --- |
 | `LP_DEVELOPMENT_TEAM` | Your Apple developer team ID |
 | `LP_MAC_BUNDLE_IDENTIFIER` | Your unique Mac app identifier |
-| `LP_MOBILE_BUNDLE_IDENTIFIER` | Your unique iPhone/iPad app identifier |
-| `LP_CLOUD_CONTAINER_IDENTIFIER` | One iCloud container shared by both apps |
+| `LP_MOBILE_BUNDLE_IDENTIFIER` | Your unique mobile app identifier |
+| `LP_CLOUD_CONTAINER_IDENTIFIER` | An iCloud container shared by both apps |
+| `LP_SHARED_KEYCHAIN_GROUP` | A shared Keychain group; defaults to the Mac bundle identifier plus `.sessions` |
 
-The shared `Resources/Signing.xcconfig` supplies public example defaults and loads
-that optional local file. Each Xcode project uses those values. The local file is
-ignored by Git and is not copied into the app bundle. Do not commit certificates,
-private keys, provisioning profiles, or account credentials.
+`Resources/Signing.xcconfig` loads the optional local file. Local signing settings are ignored by Git and are not copied into the app bundle. Keep app identifiers, the iCloud container, and the Keychain group consistent across your installations. Each developer should use their own identifiers and container.
 
-For an existing installation, keep its original app identifiers and iCloud
-container in your local file to retain its preferences and access to its existing
-shared sign-ins. A developer cloning the repository should use their own unique
-identifiers and container, rather than the public example defaults.
+Both signed apps must have the same expanded Keychain group in their `keychain-access-groups` entitlement and `LifePreserverKeychainAccessGroup` metadata. Apple supplies the app identifier prefix.
 
-## iCloud-enabled Mac and device builds
+Do not commit certificates, private keys, provisioning profiles, credentials, or your local signing configuration.
 
-Sign in to your Apple developer account in Xcode Settings, configure the local
-file, and run:
+## Signed Mac and device apps
+
+Sign in to your Apple developer account in Xcode Settings, configure the local file, and run:
 
 ```sh
 bash scripts/build-cloud.sh
 bash scripts/build-mobile.sh device
 ```
 
-Xcode automatic provisioning creates or associates your app IDs, iCloud
-capabilities, and signing profiles. Both apps must use the same iCloud container
-and environment. The current personal builds use the Development environment.
-Follow [mobile setup](MOBILE.md) for device installation and sharing.
+Xcode automatic provisioning configures the app IDs, capabilities, and signing profiles. Both apps must use the same iCloud container, environment, and Keychain access group. Development builds use CloudKit Development.
+
+The signed Mac product is `build/Cloud/Life Preserver.app`. The mobile device product is `build/MobileDeviceDerivedData/Build/Products/Debug-iphoneos/Life Preserver Mobile.app`. Install with Xcode on your registered devices, then follow [mobile setup](MOBILE.md).
 
 ## Simulator preview
 
@@ -62,13 +50,20 @@ Follow [mobile setup](MOBILE.md) for device installation and sharing.
 bash scripts/build-mobile.sh
 ```
 
-Install the simulator product and launch with `--preview` for clearly labelled
-sample readings. Add `--show-settings` to inspect Settings directly. Simulator
-builds are unsigned, so use the preview for interface checks.
+Install the product from `build/MobileDerivedData/Build/Products/Debug-iphonesimulator` in an iOS simulator. Launch with `--preview` for sample readings and `--show-settings` to inspect Settings. Simulator builds are unsigned; use preview mode for interface checks.
 
-## Public distribution
+## Source and build validation
 
-Publishing this source does not produce an App Store or notarized binary release.
-Review the provider compatibility interfaces, native OAuth callbacks, Keychain sharing, signing,
-CloudKit Production schema/environment, privacy metadata, and distribution steps
-in [release status](RELEASE.md) before shipping binaries to other users.
+`scripts/sync-project.py` adds source/resource references without replacing signing or build settings. The GitHub workflow runs core/sync tests, builds the local Mac and mobile simulator apps, and checks app metadata and bundled license notices.
+
+```sh
+python3 scripts/check-build-metadata.py \
+  'build/Release/Life Preserver.app' \
+  'build/MobileDerivedData/Build/Products/Debug-iphonesimulator/Life Preserver Mobile.app'
+```
+
+For signed builds, also verify matching Keychain entitlements and app metadata, and test live provider requests on each device.
+
+## Distribution
+
+GitHub releases provide versioned source downloads. Ready-to-install distribution requires appropriate signing, provider authorization, CloudKit Production deployment, and platform release preparation. See [RELEASE.md](RELEASE.md).

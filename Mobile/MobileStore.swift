@@ -44,7 +44,7 @@ final class MobileStore: ObservableObject {
             let directory = try await sessions.accounts()
             guard currentEpoch == epoch else { return }
             accounts = directory.map { item in accounts.first(where: { $0.id == item.id }) ?? item.displayAccount }
-            message = directory.isEmpty ? "Open the updated Mac app once and enable direct mobile checks in Settings → iPhone & iPad." : nil
+            message = directory.isEmpty ? "Open the Mac app once and enable direct mobile checks in Settings → iPhone & iPad." : nil
             await withTaskGroup(of: Void.self) { group in
                 for account in directory { group.addTask { await self.refreshAccount(account, epoch: currentEpoch) } }
             }

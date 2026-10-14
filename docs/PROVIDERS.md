@@ -1,43 +1,49 @@
-# Provider integration evidence
+# Provider integrations
 
-Reviewed September 9–10, 2026. Only subscription allowances are displayed. No inference requests, API expenditure, or invented quota totals.
+Each Life Preserver app makes direct HTTPS requests to the provider usage interfaces below. Sign-ins belong to Life Preserver and are shared as encrypted sessions through private iCloud storage, with encryption keys synchronized through iCloud Keychain. Only subscription allowances are displayed.
 
 ## OpenAI
 
-[Official app-server documentation](https://developers.openai.com/codex/app-server) and [authentication](https://developers.openai.com/codex/auth).
+Usage comes from `GET https://chatgpt.com/backend-api/wham/usage`, using Bearer authentication and the session's `ChatGPT-Account-Id` when available. `rate_limit.primary_window`, `secondary_window`, and additional model limits provide subscription windows. Credits and on-demand balances are excluded. These are the coding/Work integration's reported allowances.
 
-Life Preserver 1.2.0 uses native HTTPS `GET https://chatgpt.com/backend-api/wham/usage`, Bearer authentication, and the session's `ChatGPT-Account-Id` when present. `rate_limit.primary_window`, `secondary_window`, and additional model limits supply subscription windows; credits and on-demand balances are excluded. This compatibility endpoint is also used by [CodexBar's direct usage client](https://github.com/steipete/CodexBar/blob/main/Sources/CodexBarCore/Providers/Codex/CodexOAuth/CodexOAuthUsageFetcher.swift).
+Browser authorization uses OpenAI's native public client, S256 PKCE, state verification, and the fixed localhost callback. Authorization-code exchange is form-encoded; token refresh is JSON.
 
-Browser authorization uses OpenAI's native public client, PKCE/state, and the fixed localhost callback. Code exchange is form-encoded; token refresh is JSON, matching [OpenAI's login implementation](https://github.com/openai/codex/tree/main/codex-rs/login/src). No helper process is launched. Existing Life Preserver-owned isolated sessions are migrated by their exact scoped Keychain item, without enumerating Keychain or reading another app's login. These allowances remain the coding/Work subscription integration's reported windows, not a claim about every ChatGPT feature limit.
+References: [OpenAI authentication](https://learn.chatgpt.com/docs/auth), [OpenAI login implementation](https://github.com/openai/codex/tree/main/codex-rs/login/src), and [CodexBar's direct usage client](https://github.com/steipete/CodexBar/blob/main/Sources/CodexBarCore/Providers/Codex/CodexOAuth/CodexOAuthUsageFetcher.swift).
 
 ## Claude
 
-`GET https://api.anthropic.com/api/oauth/usage` with Bearer authentication and `anthropic-beta: oauth-2025-04-20` returns `five_hour`, `seven_day`, and optional model limits. `GET /api/oauth/profile` supplies account metadata. `extra_usage` spending is excluded.
+`GET https://api.anthropic.com/api/oauth/usage` uses Bearer authentication and `anthropic-beta: oauth-2025-04-20`. It returns `five_hour`, `seven_day`, and optional model limits. `GET /api/oauth/profile` supplies account and plan metadata. `extra_usage` spending is excluded.
 
-Authorization code + S256 PKCE, state verification, and localhost callback use the provider-native public client `9d1c250a-e61b-44d9-88ed-5944d1962f5e`. Authorization goes to `https://claude.ai/oauth/authorize`; token exchange to `https://platform.claude.com/v1/oauth/token`. Only `user:profile` is requested. The provider’s consent page names this client Claude Code. A real sign-in and live usage refresh succeeded with this minimal scope in this workspace.
+Authorization code + S256 PKCE, state verification, and a localhost callback use the provider-native public client `9d1c250a-e61b-44d9-88ed-5944d1962f5e`. Authorization goes to `https://claude.ai/oauth/authorize`; token exchange goes to `https://platform.claude.com/v1/oauth/token`. The requested scope is `user:profile`. The consent page names this client Claude Code.
 
-Protocol cross-check: [CodexBar’s Claude integration](https://github.com/steipete/CodexBar/blob/main/docs/claude.md) and [Happy’s native authentication implementation](https://github.com/slopus/happy/blob/main/packages/happy-cli/src/commands/connect/authenticateClaude.ts). Life Preserver identifies its HTTP user-agent as LifePreserver/1.0, stores its own credentials, and never reads Claude Code’s credentials.
+References: [CodexBar's Claude integration](https://github.com/steipete/CodexBar/blob/main/docs/claude.md) and [Happy's authentication implementation](https://github.com/slopus/happy/blob/main/packages/happy-cli/src/commands/connect/authenticateClaude.ts).
 
 ## Grok / SuperGrok
 
-[Official Grok overview](https://docs.x.ai/grok/overview) and [FAQ](https://docs.x.ai/grok/faq) describe the included weekly allowance shared across Grok products.
+Native OAuth uses `https://auth.x.ai/oauth2/authorize` and `/oauth2/token`, public client `b1a00492-073a-47ea-816f-4c329264a828`, S256 PKCE, state verification, and a random loopback port. Scopes are `openid profile email offline_access grok-cli:access api:access`.
 
-Native OAuth uses `https://auth.x.ai/oauth2/authorize` and `/oauth2/token`, public client `b1a00492-073a-47ea-816f-4c329264a828`, S256 PKCE, state, and a random loopback port. The provider-native scopes are `openid profile email offline_access grok-cli:access api:access`. Only usage/settings endpoints are called by Life Preserver.
+`GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`, with Bearer authentication and `x-xai-token-auth: xai-grok-cli`, supplies the included `config.creditUsagePercent` and period metadata. Settings supply the plan label. On-demand spending is excluded.
 
-`GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`, with Bearer and `x-xai-token-auth: xai-grok-cli`, supplies the included `config.creditUsagePercent` and period metadata. `onDemandUsed` and `onDemandCap` are never divided into a subscription percentage. Settings supply the plan label. A bounded protobuf fallback reads `GrokBuildBilling/GetGrokCreditsConfig` on grok.com if JSON omits the scalar. Its proto3 omitted zero is accepted only with an explicit active subscription period; malformed or empty messages never look healthy. This behavior is covered by tests.
+A bounded protobuf fallback reads `GrokBuildBilling/GetGrokCreditsConfig` on grok.com if JSON omits the percentage scalar. An omitted proto3 zero is accepted only with an explicit active subscription period; malformed or empty messages remain unknown.
 
-Protocol cross-check: [CodexBar Grok source](https://github.com/steipete/CodexBar/tree/main/Sources/CodexBarCore/Providers/Grok), provider web descriptors, and the installed official Grok CLI. A user-completed sign-in and a fresh live weekly quota read succeeded in this workspace.
+References: [Grok overview](https://docs.x.ai/grok/overview), [Grok FAQ](https://docs.x.ai/grok/faq), and [CodexBar's Grok integration](https://github.com/steipete/CodexBar/tree/main/Sources/CodexBarCore/Providers/Grok).
 
 ## Grok Bot
 
-[Official plans and billing](https://cursor.com/help/grok-bot/plans) explains that Bot usage is metered separately on the Cursor account, including when access comes from a linked SuperGrok subscription. Its normal included allowance resets weekly. Life Preserver never creates, changes, or removes the underlying subscription link.
+Grok Bot uses its associated Cursor account, including access through a linked SuperGrok subscription. Life Preserver does not create or change subscription links. Bot usage is metered separately from Grok usage.
 
-The installed official Grok Bot 0.44.0 application’s static code confirms Cursor’s challenge/poll sign-in: `https://cursor.com/loginDeepControl` with a random UUID and SHA256 verifier challenge, then `https://api2.cursor.sh/auth/poll`. Tokens rotate at `/oauth/token` using the native public client. This creates an independent session in Life Preserver’s Keychain and does not inspect Grok Bot’s saved credentials.
+Browser sign-in uses `https://cursor.com/loginDeepControl` with a random UUID and SHA256 verifier challenge, then polls `https://api2.cursor.sh/auth/poll`. Tokens rotate at `/oauth/token` using the native public client.
 
-Usage comes from `aiserver.v1.DashboardService/GetSandUsageStatus` on api2.cursor.sh. The compatibility dashboard path is `POST https://cursor.com/api/dashboard/get-sand-usage-status` using the same authenticated Cursor session. Only `usagePercent`, `hasNonZeroIncludedLimit`, reset metadata, and the plan label are used. Pooled enterprise spending, trial credits, and on-demand budgets are excluded. [CodexBar’s Sand usage parser](https://github.com/steipete/CodexBar/blob/main/Sources/CodexBarCore/Providers/Cursor/CursorSandUsage.swift) independently confirms the dashboard response fields. A real browser sign-in, SuperGrok plan label, independent weekly meter, reset time, and a fresh refresh succeeded in this workspace on September 10.
+Usage comes from `aiserver.v1.DashboardService/GetSandUsageStatus` on api2.cursor.sh. The dashboard compatibility path is `POST https://cursor.com/api/dashboard/get-sand-usage-status`, using the same authenticated Cursor session. Only `usagePercent`, `hasNonZeroIncludedLimit`, reset metadata, and the plan label are used. Enterprise spending, trial credits, and on-demand budgets are excluded.
 
-## Distribution boundary
+References: [Grok Bot plans and billing](https://cursor.com/help/grok-bot/plans) and [CodexBar's Sand usage parser](https://github.com/steipete/CodexBar/blob/main/Sources/CodexBarCore/Providers/Cursor/CursorSandUsage.swift).
 
-These consumer compatibility interfaces are not documented, registered Life Preserver OAuth applications. Provider consent screens can name their native clients; behavior may change. Before public distribution, review provider authorization/terms, obtain appropriate client registration or another supported arrangement, and complete sandbox and distribution validation. This limitation does not justify replacing working subscription meters with manual trackers.
+## Transport and distribution
 
-Provider names and logos remain their owners’ trademarks. The bundled OpenAI, Claude, and Grok SVG path data comes from the MIT-licensed [Lobe Icons](https://github.com/lobehub/lobe-icons) project; the pinned upstream revision, adaptations, and copyright/license notice are recorded in `Sources/LifePreserver/Assets/ThirdPartyNotices.txt` and bundled in both apps. This licenses the icon data and does not grant provider trademark rights or imply endorsement. The Life Preserver icon is original code-rendered artwork.
+Life Preserver uses its own native transport with the `LifePreserver/1.2` user-agent, bounded requests, cache-free sessions, and refused redirects. Raw responses and credentials are excluded from diagnostics. Missing quota values remain unknown.
+
+These consumer compatibility interfaces use provider-native public clients rather than registered Life Preserver OAuth applications. Consent screens can name the provider's native client. Public distribution requires appropriate provider authorization, signing, and platform validation; see [RELEASE.md](RELEASE.md).
+
+## Provider icons
+
+The OpenAI, Claude, and Grok SVG data comes from the MIT-licensed [Lobe Icons](https://github.com/lobehub/lobe-icons) project. The pinned revision, adaptations, and license notice are recorded in [ThirdPartyNotices.txt](../Sources/LifePreserver/Assets/ThirdPartyNotices.txt) and bundled with both apps. Provider names and logos remain their owners' trademarks. The Life Preserver icon is original artwork.

@@ -59,7 +59,7 @@ struct SettingsView: View {
             Spacer()
             VStack(alignment: .leading, spacing: 5) {
                 Text("Keeps you afloat.").font(.system(size: 11, design: .serif)).foregroundStyle(Palette.secondary)
-                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.0")").font(.system(size: 7, weight: .medium)).tracking(0.5).foregroundStyle(Palette.secondary.opacity(0.7))
+                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0")").font(.system(size: 7, weight: .medium)).tracking(0.5).foregroundStyle(Palette.secondary.opacity(0.7))
             }.padding(.horizontal, 9).padding(.bottom, 21)
         }.padding(.horizontal, 12).frame(width: 167).background(Palette.wash.opacity(0.45))
             .overlay(alignment: .trailing) { Rectangle().fill(Palette.line).frame(width: 0.7) }

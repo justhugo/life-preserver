@@ -37,7 +37,7 @@ struct MobileSharingView: View {
             SectionLabel(text: "GET CONNECTED")
             Text("1. Install the Life Preserver companion on your iPhone or iPad.\n2. Use the same iCloud account on both devices.\n3. Turn on iCloud Passwords & Keychain, enable direct checks here, then open the companion.")
                 .font(.system(size: 12)).lineSpacing(8).fixedSize(horizontal: false, vertical: true)
-            Text("Each device checks the provider APIs itself. Your Mac only needs to be online once to prepare your existing sign-ins; it can then sleep or quit. Pull to refresh retrieves new provider readings.")
+            Text("Each device checks provider APIs using sign-ins shared securely through iCloud. Pull to refresh retrieves current usage.")
                 .font(.system(size: 11)).foregroundStyle(Palette.secondary).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
             Text("Sign-ins are encrypted before they enter your private iCloud database. Encryption keys sync through iCloud Keychain. Devices coordinate sign-in renewal securely. Turning this off removes shared sign-ins and keeps the Mac connections local.")
                 .font(.system(size: 11)).foregroundStyle(Palette.secondary).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
