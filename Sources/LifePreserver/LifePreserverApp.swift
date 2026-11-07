@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Combine
+import UserNotifications
 #if SWIFT_PACKAGE
 import LifePreserverCore
 import LifePreserverSync
@@ -19,7 +20,7 @@ struct LifePreserverApplication {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     private var store: AppStore!
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
@@ -98,7 +99,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if preview {
             showPreviewWindow()
         } else if store.showOnboarding { showOnboarding() }
-        if !preview { Task { await store.restoreConnections(); await store.refresh() } }
+        if !preview {
+            UNUserNotificationCenter.current().delegate = self
+            Task { await store.restoreConnections(); await store.refresh() }
+        }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+              response.notification.request.identifier.hasPrefix(SessionRenewalAlerts.identifierPrefix) else { return }
+        await resumeRenewalFromAlert()
+    }
+
+    private func resumeRenewalFromAlert() async {
+        showPopover()
+        await store.refresh()
     }
 
     private func setupMainMenu() {
@@ -145,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         guard let button = statusItem.button else { return }
         if store.showMenuPressure, !store.hasUncertainReadings,
            let remaining = store.visibleAccounts.compactMap({ $0.tightestWindow?.remainingPercent }).min() {
-            button.title = " \(Int(remaining.rounded(.down)))%"
+            button.title = " \(UsageWindow.formatRemainingPercent(remaining))"
             button.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         } else { button.title = "" }
         button.toolTip = store.demo ? "Life Preserver · sample data" : "Life Preserver · \(store.headline)"

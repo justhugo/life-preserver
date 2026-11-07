@@ -17,6 +17,8 @@ Mobile Settings contains appearance choices, the app version, a short About desc
 
 Manage provider sign-ins in Mac **Settings → Accounts**. Reconnecting a provider securely replaces its shared session. Turning direct mobile checks off preserves current credentials locally on the Mac and removes the shared provider directory and encrypted sessions.
 
+Set an optional **Device label** in mobile Settings or in Mac **Settings → iPhone & iPad** to distinguish devices with the same default label. The label is shared with your devices in private iCloud storage during renewal. Enable **Sign-in renewal alerts** in mobile Settings or Mac **Settings → General** to get a reminder on the device that saved a renewed sign-in if it still needs to sync.
+
 ## Credential protection
 
 - App-owned credentials are encrypted with AES-GCM before upload to private CloudKit storage. Encryption authenticates the account record, provider, key ID, and session revision.
@@ -33,7 +35,7 @@ Manage provider sign-ins in Mac **Settings → Accounts**. Reconnecting a provid
 | Waiting for a secure sign-in key | Confirm iCloud Passwords & Keychain is enabled; keep devices online and unlocked for synchronization. |
 | Provider session expired or revoked | Reconnect that provider in Mac Settings → Accounts. |
 | Another device is renewing | Refresh again shortly. |
-| Renewal interrupted | Reopen Life Preserver on the device that started renewal, or reconnect the provider on the Mac. |
+| Renewal didn’t finish | If the message names another device, open Life Preserver and refresh there. That device can finish syncing if it saved the renewed sign-in. Otherwise, reconnect the provider in Mac Settings → Accounts. |
 | No connected providers | Connect providers and enable direct mobile checks in Mac Settings. |
 | iCloud unavailable | Confirm the device's iCloud account and network connection, then retry. |
 

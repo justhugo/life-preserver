@@ -31,7 +31,6 @@ public enum SubscriptionSnapshot {
         return windows
     }
 
-    /// Only the included subscription pool. On-demand/API spending is deliberately ignored.
     public static func grok(_ data: Data) throws -> [UsageWindow] {
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         guard let config = root["config"] as? [String: Any] else { return [] }
@@ -40,8 +39,11 @@ public enum SubscriptionSnapshot {
         let end = date(period?["end"] as? String ?? config["billingPeriodEnd"] as? String)
         let duration = start.flatMap { start in end.map { Int($0.timeIntervalSince(start) / 60) } }
         let title = duration.map { $0 > 20_000 ? "Monthly" : "Weekly" } ?? "Weekly"
-        return [UsageWindow(id: "grok-subscription", title: title, usedPercent: number(config["creditUsagePercent"]),
-            durationMinutes: duration, resetsAt: end)]
+        let used = number(config["creditUsagePercent"])
+        // The binary fallback can supply the included percentage if the JSON response omitted it.
+        let billing = (used ?? 100) >= 100 ? grokBilling(config, onDemandEnabled: bool(root["onDemandEnabled"])) : nil
+        return [UsageWindow(id: "grok-subscription", title: title, usedPercent: used,
+            durationMinutes: duration, resetsAt: end, extraUsage: billing)]
     }
 
     public static func grokBot(_ data: Data) throws -> [UsageWindow] {
@@ -49,8 +51,60 @@ public enum SubscriptionSnapshot {
         // Enterprise pooled spend and trial credits are not a personal subscription allowance.
         guard root["hasNonZeroIncludedLimit"] as? Bool == true,
               root["usesPooledEnterpriseAllowance"] as? Bool != true else { return [] }
-        return [UsageWindow(id: "grok-bot-weekly", title: "Weekly", usedPercent: number(root["usagePercent"]),
-            durationMinutes: 10_080, resetsAt: date(root["nextResetTimestampUtc"] as? String))]
+        let used = number(root["usagePercent"])
+        let billing = (used ?? 0) >= 100 ? grokBotBilling(root) : nil
+        return [UsageWindow(id: "grok-bot-weekly", title: "Weekly", usedPercent: used,
+            durationMinutes: 10_080, resetsAt: date(root["nextResetTimestampUtc"] as? String), extraUsage: billing)]
+    }
+
+    private static func grokBilling(_ config: [String: Any], onDemandEnabled: Bool?) -> ExtraUsageStatus? {
+        let limitReached = spendingLimitReached(used: grokCents(config["onDemandUsed"]), limit: grokCents(config["onDemandCap"]))
+        let balance = grokCents(config["prepaidBalance"])
+        if balance != nil || (limitReached && onDemandEnabled == nil) {
+            return .prepaid(balanceCents: balance, spendingLimitReached: limitReached)
+        }
+        return onDemandEnabled.map { .onDemand(enabled: $0, spendingLimitReached: $0 && limitReached) }
+    }
+
+    private static func grokBotBilling(_ root: [String: Any]) -> ExtraUsageStatus? {
+        if bool(root["isUnified"]) == true {
+            return root["billingBrand"] as? String == "SAND_BILLING_BRAND_GROK" ? .sharedPrepaid : nil
+        }
+        guard let settings = root["onDemandSettings"] as? [String: Any],
+              bool(settings["visible"]) != false, bool(settings["eligible"]) != false,
+              let enabled = bool(settings["enabled"]) else { return nil }
+        return .onDemand(enabled: enabled, spendingLimitReached: false)
+    }
+
+    public static func cursorOnDemandLimitReached(_ data: Data, at now: Date = Date()) throws -> Bool {
+        let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+        guard root["limitType"] as? String == "user",
+              let end = date(root["billingCycleEnd"] as? String), end > now,
+              let individual = root["individualUsage"] as? [String: Any],
+              let onDemand = individual["onDemand"] as? [String: Any], bool(onDemand["enabled"]) == true else { return false }
+        return spendingLimitReached(used: cents(onDemand["used"]), limit: cents(onDemand["limit"]))
+    }
+
+    private static func spendingLimitReached(used: Int?, limit: Int?) -> Bool {
+        guard let used, let limit, limit > 0 else { return false }
+        return used >= limit
+    }
+
+    private static func grokCents(_ value: Any?) -> Int? {
+        guard let amount = value as? [String: Any] else { return nil }
+        // An empty Cent message represents an explicit zero in proto3 JSON.
+        return amount.isEmpty ? 0 : cents(amount["val"])
+    }
+
+    private static func cents(_ value: Any?) -> Int? {
+        let amount = (value as? String).flatMap { Int($0) } ?? number(value).flatMap { Int(exactly: $0) }
+        guard let amount, amount >= 0 else { return nil }
+        return amount
+    }
+
+    private static func bool(_ value: Any?) -> Bool? {
+        guard let value = value as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() else { return nil }
+        return value.boolValue
     }
 
     private static func number(_ value: Any?) -> Double? {

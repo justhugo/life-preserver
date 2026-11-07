@@ -151,6 +151,17 @@ struct ProviderCard: View {
 
                 }.padding(.top, 10)
             }
+            if account.provider == .grok || account.provider == .grokBot {
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    if let billing = account.extraUsageLink(at: context.date) {
+                        Link(destination: billing.destination) {
+                            Label(billing.title, systemImage: "arrow.up.right")
+                                .fixedSize(horizontal: false, vertical: true)
+                        }.font(.system(size: 10)).foregroundStyle(Palette.sea).padding(.top, 8)
+                            .help("Open billing in your browser")
+                    }
+                }
+            }
             if expanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Rectangle().fill(Palette.line).frame(height: 0.7)
@@ -200,7 +211,7 @@ struct QuotaBar: View {
                 Text(window.title).font(.system(size: 10)).foregroundStyle(Palette.secondary).lineLimit(1).minimumScaleFactor(0.85)
                 Spacer(minLength: 5)
                 if let remaining = window.remainingPercent {
-                    Text("\(Int(remaining.rounded(.down)))%")
+                    Text(UsageWindow.formatRemainingPercent(remaining))
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundStyle(uncertain ? Palette.secondary : Palette.pressure(window.pressure))
                 } else { Text("Not reported").font(.system(size: 10)).foregroundStyle(Palette.secondary) }
@@ -219,7 +230,7 @@ struct QuotaBar: View {
                 }
             }.frame(height: 4)
         }.accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(window.title): \(window.remainingPercent.map { "\(Int($0)) percent remaining" } ?? "not reported")\(uncertain ? ", last known reading" : "")")
+            .accessibilityLabel("\(window.title): \(window.remainingPercentDescription)\(uncertain ? ", last known reading" : "")")
     }
 }
 

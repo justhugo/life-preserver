@@ -20,6 +20,27 @@ public enum Provider: String, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 public enum ConnectionKind: String, Codable, Sendable { case codex, claudeOAuth, grokOAuth, grokBotOAuth, manual, demo }
+
+public enum ExtraUsageStatus: Codable, Equatable, Sendable {
+    case prepaid(balanceCents: Int?, spendingLimitReached: Bool)
+    case onDemand(enabled: Bool, spendingLimitReached: Bool)
+    case sharedPrepaid
+
+    var text: String {
+        switch self {
+        case .prepaid(let balanceCents, let spendingLimitReached):
+            let balance = balanceCents.map { (Decimal($0) / 100).formatted(.currency(code: "USD")) }
+            let label = balance.map { "Extra credits · \($0) remaining" } ?? "Extra credits"
+            return spendingLimitReached ? "\(label) · Spending limit reached" : label
+        case .onDemand(let enabled, let spendingLimitReached):
+            if spendingLimitReached { return "On-demand · Monthly limit reached" }
+            return enabled ? "On-demand enabled" : "On-demand off"
+        case .sharedPrepaid:
+            return "Check shared Grok credits"
+        }
+    }
+}
+
 public enum Pressure: Int, Comparable, Sendable {
     case unknown = -1, comfortable = 0, watch = 1, critical = 2, exhausted = 3
     public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -50,13 +71,24 @@ public struct UsageWindow: Identifiable, Codable, Equatable, Sendable {
     public var durationMinutes: Int?
     public var resetsAt: Date?
     public var overviewEligible: Bool?
-    public init(id: String, title: String, usedPercent: Double?, durationMinutes: Int? = nil, resetsAt: Date? = nil, overviewEligible: Bool = true) {
+    public var extraUsage: ExtraUsageStatus?
+    public init(id: String, title: String, usedPercent: Double?, durationMinutes: Int? = nil, resetsAt: Date? = nil, overviewEligible: Bool = true, extraUsage: ExtraUsageStatus? = nil) {
         self.id = id; self.title = title
         self.usedPercent = usedPercent.flatMap { $0.isFinite ? min(100, max(0, $0)) : nil }
         self.durationMinutes = durationMinutes; self.resetsAt = resetsAt
         self.overviewEligible = overviewEligible
+        self.extraUsage = extraUsage
     }
     public var remainingPercent: Double? { usedPercent.map { 100 - $0 } }
+    public static func formatRemainingPercent(_ percent: Double, spoken: Bool = false) -> String {
+        guard (0...100).contains(percent) else { return "Not reported" }
+        if percent > 0 && percent < 1 { return spoken ? "less than 1 percent remaining" : "<1%" }
+        let whole = Int(percent.rounded(.down))
+        return spoken ? "\(whole) percent remaining" : "\(whole)%"
+    }
+    public var remainingPercentDescription: String {
+        remainingPercent.map { Self.formatRemainingPercent($0, spoken: true) } ?? "not reported"
+    }
     public var pressure: Pressure { Pressure(usedPercent: usedPercent) }
     public func resetIsPast(at now: Date) -> Bool { resetsAt.map { $0 <= now } ?? false }
     public func resetText(at now: Date = Date()) -> String {
@@ -107,6 +139,15 @@ public struct ProviderAccount: Identifiable, Codable, Equatable, Sendable {
     }
     public func reliablePressure(at now: Date = Date()) -> Pressure {
         error != nil || isStale(at: now) ? .unknown : pressure
+    }
+
+    public func extraUsageLink(at now: Date = Date()) -> (title: String, destination: URL)? {
+        guard provider == .grok || provider == .grokBot, kind != .demo, kind != .manual,
+              error == nil, !isStale(at: now), let included = overviewWindows.first,
+              included.remainingPercent == 0 else { return nil }
+        let grokBilling = provider == .grok || included.extraUsage == .sharedPrepaid
+        let destination = grokBilling ? URL(string: "https://grok.com/dashboard/billing")! : URL(string: "https://cursor.com/dashboard/spending")!
+        return (included.extraUsage?.text ?? "Check billing", destination)
     }
 }
 

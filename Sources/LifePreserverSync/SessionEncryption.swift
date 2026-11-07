@@ -19,16 +19,38 @@ public enum SessionEncryption {
 }
 
 public enum SessionSharingError: LocalizedError {
-    case keyPending, invalidSession, unavailable, renewing, interrupted, changed
+    case keyPending, invalidSession, unavailable, renewing, pendingSync, changed
+    case interrupted(device: String?)
     public var errorDescription: String? {
         switch self {
         case .keyPending: return "Waiting for your secure sign-in key. Turn on iCloud Passwords & Keychain on both devices, then refresh."
         case .invalidSession: return "The shared sign-in couldn’t be verified. Reconnect this provider."
         case .unavailable: return "This provider isn’t connected for direct checks yet. Open Life Preserver on your Mac once to finish setup."
         case .renewing: return "Another device is renewing this sign-in. Try refreshing again shortly."
-        case .interrupted: return "Sign-in renewal was interrupted. Open Life Preserver on the device that started it, or reconnect this provider on your Mac."
+        case .pendingSync:
+            return "The renewed sign-in is saved on this device. Refresh here when you’re online to finish syncing it."
+        case .interrupted(let device):
+            let reconnect = "reconnect this provider in Life Preserver → Settings → Accounts on your Mac."
+            guard let device else { return "Sign-in renewal didn’t finish. To restore usage checks, \(reconnect)" }
+            return "Sign-in renewal started on \(device). Open Life Preserver there and refresh to see if it can finish. If the warning stays, \(reconnect)"
         case .changed: return "The sign-in changed on another device. Refresh to use the new connection."
         }
+    }
+}
+
+struct SessionRenewalOrigin: Codable {
+    let owner: String
+    let revision: String
+    let label: String
+
+    static func cleanLabel(_ label: String) -> String {
+        String(label.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(48))
+    }
+
+    func recoveryLabel(leaseOwner: String?, revision: String?, localOwner: String) -> String? {
+        guard leaseOwner == owner, revision == self.revision, owner != localOwner else { return nil }
+        let label = Self.cleanLabel(label)
+        return label.isEmpty ? nil : label
     }
 }
 

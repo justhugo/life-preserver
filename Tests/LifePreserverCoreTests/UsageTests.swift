@@ -216,3 +216,74 @@ private func grpcFrame(_ bytes:[UInt8], flag:UInt8=0) -> Data {
     #expect(try SubscriptionSnapshot.grokBot(Data(#"{"usagePercent":0,"hasNonZeroIncludedLimit":true,"usesPooledEnterpriseAllowance":true}"#.utf8)).isEmpty)
     #expect(try SubscriptionSnapshot.grokBot(Data(#"{"hasNonZeroIncludedLimit":true}"#.utf8))[0].remainingPercent == nil)
 }
+
+@Test func remainingPercentageDistinguishesFractionsFromExhaustion() {
+    #expect(UsageWindow.formatRemainingPercent(0.4) == "<1%")
+    #expect(UsageWindow.formatRemainingPercent(0) == "0%")
+    #expect(UsageWindow.formatRemainingPercent(1) == "1%")
+    #expect(UsageWindow.formatRemainingPercent(99.9) == "99%")
+    let window = UsageWindow(id: "weekly", title: "Weekly", usedPercent: 99.6)
+    #expect(window.remainingPercentDescription == "less than 1 percent remaining")
+}
+
+@Test func extraUsageLinkRequiresFreshExhaustedIncludedUsage() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let included = UsageWindow(id: "weekly", title: "Weekly", usedPercent: 99.6,
+        resetsAt: now.addingTimeInterval(3600), extraUsage: .prepaid(balanceCents: 1250, spendingLimitReached: false))
+    var account = ProviderAccount(provider: .grok, kind: .grokOAuth, windows: [included], updatedAt: now)
+    #expect(account.extraUsageLink(at: now) == nil)
+    account.windows[0].usedPercent = 100
+    let link = try #require(account.extraUsageLink(at: now))
+    #expect(link.title.hasPrefix("Extra credits"))
+    #expect(link.destination.host == "grok.com")
+    #expect(account.extraUsageLink(at: now.addingTimeInterval(901)) == nil)
+    account.windows[0].resetsAt = now
+    #expect(account.extraUsageLink(at: now) == nil)
+    account.windows[0].resetsAt = nil
+    account.windows[0].extraUsage = nil
+    #expect(account.extraUsageLink(at: now)?.title == "Check billing")
+    account.error = "Provider unavailable"
+    #expect(account.extraUsageLink(at: now) == nil)
+    account.error = nil
+    account.windows[0].usedPercent = nil
+    #expect(account.extraUsageLink(at: now) == nil)
+}
+
+@Test func grokReadsPrepaidCreditAndSpendingCapSeparately() throws {
+    let exhausted = Data(#"{"config":{"creditUsagePercent":100,"prepaidBalance":{"val":"1250"},"onDemandUsed":{"val":5000},"onDemandCap":{"val":5000}}}"#.utf8)
+    #expect(try SubscriptionSnapshot.grok(exhausted).first?.extraUsage == .prepaid(balanceCents: 1250, spendingLimitReached: true))
+
+    let zeroBalance = Data(#"{"config":{"creditUsagePercent":100,"prepaidBalance":{},"onDemandUsed":{},"onDemandCap":{}}}"#.utf8)
+    #expect(try SubscriptionSnapshot.grok(zeroBalance).first?.extraUsage == .prepaid(balanceCents: 0, spendingLimitReached: false))
+
+    let missingBalance = Data(#"{"config":{"creditUsagePercent":100,"prepaidBalance":{"val":false}}}"#.utf8)
+    #expect(try SubscriptionSnapshot.grok(missingBalance).first?.extraUsage == nil)
+
+    let notExhausted = Data(#"{"config":{"creditUsagePercent":99.6,"prepaidBalance":{"val":1250}}}"#.utf8)
+    #expect(try SubscriptionSnapshot.grok(notExhausted).first?.extraUsage == nil)
+}
+
+@Test func grokBotSeparatesSharedCreditsFromLegacyOnDemand() throws {
+    let onDemand = Data(#"{"hasNonZeroIncludedLimit":true,"usagePercent":100,"onDemandSettings":{"eligible":true,"enabled":false}}"#.utf8)
+    let legacy = try SubscriptionSnapshot.grokBot(onDemand)
+    #expect(legacy.first?.extraUsage == .onDemand(enabled: false, spendingLimitReached: false))
+    let now = Date()
+    var account = ProviderAccount(provider: .grokBot, kind: .grokBotOAuth, windows: legacy, updatedAt: now)
+    #expect(account.extraUsageLink(at: now)?.destination.host == "cursor.com")
+
+    let unified = Data(#"{"hasNonZeroIncludedLimit":true,"usagePercent":100,"isUnified":true,"billingBrand":"SAND_BILLING_BRAND_GROK","onDemandSettings":{"enabled":false}}"#.utf8)
+    account.windows = try SubscriptionSnapshot.grokBot(unified)
+    #expect(account.windows.first?.extraUsage == .sharedPrepaid)
+    #expect(account.extraUsageLink(at: now)?.destination.host == "grok.com")
+}
+
+@Test func cursorCapRequiresCurrentPersonalSpendingData() throws {
+    let now = try #require(SubscriptionSnapshot.date("2026-11-07T20:00:00Z"))
+    let summary = #"{"limitType":"user","billingCycleEnd":"2026-12-01T00:00:00Z","individualUsage":{"onDemand":{"enabled":true,"used":1020,"limit":1000}}}"#
+    #expect(try SubscriptionSnapshot.cursorOnDemandLimitReached(Data(summary.utf8), at: now))
+    let team = summary.replacingOccurrences(of: #""user""#, with: #""team""#)
+    #expect(try !SubscriptionSnapshot.cursorOnDemandLimitReached(Data(team.utf8), at: now))
+    let unlimited = summary.replacingOccurrences(of: #""limit":1000"#, with: #""limit":null"#)
+    #expect(try !SubscriptionSnapshot.cursorOnDemandLimitReached(Data(unlimited.utf8), at: now))
+    #expect(try !SubscriptionSnapshot.cursorOnDemandLimitReached(Data(summary.utf8), at: now.addingTimeInterval(3_000_000)))
+}

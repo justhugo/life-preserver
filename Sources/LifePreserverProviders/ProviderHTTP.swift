@@ -41,7 +41,8 @@ public final class SubscriptionHTTP: NSObject, URLSessionTaskDelegate, @unchecke
         var request = URLRequest(url: url)
         request.httpMethod = body == nil ? "GET" : "POST"
         request.httpBody = body
-        request.setValue("LifePreserver/1.2", forHTTPHeaderField: "User-Agent")
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        request.setValue(version.map { "LifePreserver/\($0)" } ?? "LifePreserver", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if body != nil { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
