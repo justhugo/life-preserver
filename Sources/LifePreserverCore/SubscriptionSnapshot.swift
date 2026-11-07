@@ -41,7 +41,8 @@ public enum SubscriptionSnapshot {
         let title = duration.map { $0 > 20_000 ? "Monthly" : "Weekly" } ?? "Weekly"
         let used = number(config["creditUsagePercent"])
         // The binary fallback can supply the included percentage if the JSON response omitted it.
-        let billing = (used ?? 100) >= 100 ? grokBilling(config, onDemandEnabled: bool(root["onDemandEnabled"])) : nil
+        let sharedStart = bool(config["isUnifiedBillingUser"]) == true ? start : nil
+        let billing = (used ?? 100) >= 100 ? grokBilling(config, onDemandEnabled: bool(root["onDemandEnabled"]), sharedStart: sharedStart) : nil
         return [UsageWindow(id: "grok-subscription", title: title, usedPercent: used,
             durationMinutes: duration, resetsAt: end, extraUsage: billing)]
     }
@@ -57,18 +58,21 @@ public enum SubscriptionSnapshot {
             durationMinutes: 10_080, resetsAt: date(root["nextResetTimestampUtc"] as? String), extraUsage: billing)]
     }
 
-    private static func grokBilling(_ config: [String: Any], onDemandEnabled: Bool?) -> ExtraUsageStatus? {
-        let limitReached = spendingLimitReached(used: grokCents(config["onDemandUsed"]), limit: grokCents(config["onDemandCap"]))
+    private static func grokBilling(_ config: [String: Any], onDemandEnabled: Bool?, sharedStart: Date?) -> ExtraUsageStatus? {
+        let monthly = monthlySpending(used: grokCents(config["onDemandUsed"]), limit: grokCents(config["onDemandCap"]))
+        let limitReached = monthly?.remainingCents == 0
         let balance = grokCents(config["prepaidBalance"])
-        if balance != nil || (limitReached && onDemandEnabled == nil) {
-            return .prepaid(balanceCents: balance, spendingLimitReached: limitReached)
+        if balance != nil || sharedStart != nil || (limitReached && onDemandEnabled == nil) {
+            return .prepaid(balanceCents: balance, spendingLimitReached: limitReached, monthly: monthly, sharedPeriodStart: sharedStart)
         }
         return onDemandEnabled.map { .onDemand(enabled: $0, spendingLimitReached: $0 && limitReached) }
     }
 
     private static func grokBotBilling(_ root: [String: Any]) -> ExtraUsageStatus? {
         if bool(root["isUnified"]) == true {
-            return root["billingBrand"] as? String == "SAND_BILLING_BRAND_GROK" ? .sharedPrepaid : nil
+            guard root["billingBrand"] as? String == "SAND_BILLING_BRAND_GROK" else { return nil }
+            return .prepaid(balanceCents: cents(root["prepaidAvailableCents"]), spendingLimitReached: false,
+                sharedPeriodStart: date(root["currentPeriodStart"] as? String))
         }
         guard let settings = root["onDemandSettings"] as? [String: Any],
               bool(settings["visible"]) != false, bool(settings["eligible"]) != false,
@@ -82,12 +86,21 @@ public enum SubscriptionSnapshot {
               let end = date(root["billingCycleEnd"] as? String), end > now,
               let individual = root["individualUsage"] as? [String: Any],
               let onDemand = individual["onDemand"] as? [String: Any], bool(onDemand["enabled"]) == true else { return false }
-        return spendingLimitReached(used: cents(onDemand["used"]), limit: cents(onDemand["limit"]))
+        return monthlySpending(used: cents(onDemand["used"]), limit: cents(onDemand["limit"]))?.remainingCents == 0
     }
 
-    private static func spendingLimitReached(used: Int?, limit: Int?) -> Bool {
-        guard let used, let limit, limit > 0 else { return false }
-        return used >= limit
+    public static func grokBotMonthlySpending(prepaid: Data, periodUsage: Data) throws -> ExtraUsageStatus.MonthlySpending? {
+        let prepaid = try JSONSerialization.jsonObject(with: prepaid) as? [String: Any]
+        let period = try JSONSerialization.jsonObject(with: periodUsage) as? [String: Any]
+        guard let limits = period?["spendLimitUsage"] as? [String: Any], limits["limitType"] as? String == "user" else { return nil }
+        // Unified accounts report the weekly quota in GetCurrentPeriodUsage. The monthly
+        // spend comes from the prepaid wallet; the legacy remaining field can be unchanged.
+        return monthlySpending(used: cents(prepaid?["spentThisMonthCents"]), limit: cents(limits["individualLimit"]))
+    }
+
+    private static func monthlySpending(used: Int?, limit: Int?) -> ExtraUsageStatus.MonthlySpending? {
+        guard let used, let limit, limit > 0 else { return nil }
+        return .init(usedCents: used, limitCents: limit)
     }
 
     private static func grokCents(_ value: Any?) -> Int? {

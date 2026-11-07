@@ -6,7 +6,7 @@ Life Preserver 1.3.0 runs on macOS, iPhone, and iPad. Each device polls provider
 
 - The Mac Accounts screen has a bordered Reconnect button with hover feedback and keyboard focus.
 - Interrupted sign-in renewal can name the device that started it. An optional alert reminds you when that device has a renewed sign-in waiting to sync.
-- Meters show `<1%` for a positive remainder below 1%. At a confirmed 0%, Grok and Grok Bot show available extra-usage information and a billing link.
+- Meters show `<1%` for a positive remainder below 1%. At a confirmed 0%, the expanded Grok and Grok Bot cards show extra-usage details, including available monthly spending room when reported, and a billing link.
 
 ## Included
 

@@ -50,8 +50,9 @@ struct MobileUsageView: View {
                     if !store.accounts.isEmpty {
                         TimelineView(.periodic(from: .now, by: 30)) { context in
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 310), spacing: 12)], alignment: .leading, spacing: 12) {
+                                let grokBot = store.accounts.first { $0.provider == .grokBot }
                                 ForEach(store.accounts) { item in
-                                    MobileAccountCard(account: item, now: context.date)
+                                    MobileAccountCard(account: item, grokBot: grokBot, now: context.date)
                                 }
                             }
                         }
@@ -173,6 +174,7 @@ struct MobileUsageView: View {
 
 private struct MobileAccountCard: View {
     let account: ProviderAccount
+    let grokBot: ProviderAccount?
     let now: Date
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -218,14 +220,6 @@ private struct MobileAccountCard: View {
                 }
             }
             if account.windows.isEmpty { Text("No usage reading yet.").font(.subheadline).foregroundStyle(MobilePalette.secondary) }
-            if let billing = account.extraUsageLink(at: now) {
-                Link(destination: billing.destination) {
-                    Label(billing.title, systemImage: "arrow.up.right")
-                        .frame(minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }.font(.caption).foregroundStyle(MobilePalette.sea)
-                    .accessibilityHint("Opens billing in your browser")
-            }
             if expanded {
                 Rectangle().fill(MobilePalette.line).frame(height: 0.7)
                 VStack(alignment: .leading, spacing: 16) {
@@ -236,6 +230,14 @@ private struct MobileAccountCard: View {
                             Text(window.resetText(at: now)).font(.caption).foregroundStyle(MobilePalette.secondary)
                             if let reset = window.resetsAt { Text(reset.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(MobilePalette.secondary) }
                         }
+                    }
+                    if let billing = account.extraUsageLink(grokBot: grokBot, at: now) {
+                        Link(destination: billing.destination) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(billing.title, systemImage: "arrow.up.right").foregroundStyle(MobilePalette.sea)
+                                if let detail = billing.detail { Text(detail).foregroundStyle(MobilePalette.secondary) }
+                            }.frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                        }.font(.caption).accessibilityHint("Opens billing in your browser")
                     }
                     if let date = account.updatedAt { Text("Provider checked \(date.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(MobilePalette.secondary) }
                     else { Text("Provider hasn’t returned a reading yet.").font(.caption).foregroundStyle(MobilePalette.secondary) }

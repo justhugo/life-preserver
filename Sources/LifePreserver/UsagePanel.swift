@@ -20,8 +20,9 @@ struct UsagePanel: View {
                     else {
                         SectionLabel(text: "USAGE REMAINING").padding(.horizontal, 2)
                         VStack(spacing: 9) {
+                            let grokBot = store.visibleAccounts.first { $0.provider == .grokBot }
                             ForEach(store.visibleAccounts) { account in
-                                ProviderCard(account: account, expanded: expanded.contains(account.id), toggle: {
+                                ProviderCard(account: account, grokBot: grokBot, expanded: expanded.contains(account.id), toggle: {
                                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                                         if expanded.contains(account.id) { expanded.remove(account.id) }
                                         else { expanded.insert(account.id) }
@@ -110,6 +111,7 @@ struct UsagePanel: View {
 
 struct ProviderCard: View {
     let account: ProviderAccount
+    let grokBot: ProviderAccount?
     let expanded: Bool
     let toggle: () -> Void
 
@@ -151,17 +153,6 @@ struct ProviderCard: View {
 
                 }.padding(.top, 10)
             }
-            if account.provider == .grok || account.provider == .grokBot {
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    if let billing = account.extraUsageLink(at: context.date) {
-                        Link(destination: billing.destination) {
-                            Label(billing.title, systemImage: "arrow.up.right")
-                                .fixedSize(horizontal: false, vertical: true)
-                        }.font(.system(size: 10)).foregroundStyle(Palette.sea).padding(.top, 8)
-                            .help("Open billing in your browser")
-                    }
-                }
-            }
             if expanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Rectangle().fill(Palette.line).frame(height: 0.7)
@@ -175,6 +166,18 @@ struct ProviderCard: View {
                             }
                         }.font(.system(size: 10))
                         .help(window.resetsAt.map { $0.formatted(date: .complete, time: .shortened) } ?? "The provider did not supply a reset time")
+                    }
+                    if account.provider == .grok || account.provider == .grokBot {
+                        TimelineView(.periodic(from: .now, by: 30)) { context in
+                            if let billing = account.extraUsageLink(grokBot: grokBot, at: context.date) {
+                                Link(destination: billing.destination) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Label(billing.title, systemImage: "arrow.up.right").foregroundStyle(Palette.sea)
+                                        if let detail = billing.detail { Text(detail).foregroundStyle(Palette.secondary) }
+                                    }.fixedSize(horizontal: false, vertical: true)
+                                }.font(.system(size: 10)).help("Open billing in your browser")
+                            }
+                        }
                     }
                     HStack(spacing: 4) {
                         Image(systemName: account.kind == .manual ? "pencil" : "lock.shield").font(.system(size: 9))

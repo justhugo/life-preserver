@@ -15,7 +15,7 @@ See [mobile setup and troubleshooting](docs/MOBILE.md).
 
 ## Usage overview
 
-Provider cards show remaining percentages, reset times, and plan names. OpenAI and Claude show **5-hour session** and **Weekly** meters. At a confirmed 0% remaining, the Grok and Grok Bot cards also show available billing status and a link to check billing. Expand a card for additional limits and connection details. Missing values remain unknown, and old readings are marked stale.
+Provider cards show remaining percentages, reset times, and plan names. OpenAI and Claude show **5-hour session** and **Weekly** meters. Expand a card for additional limits and connection details. At a confirmed 0% remaining, the expanded Grok and Grok Bot cards show available billing details and a link to check billing. Missing values remain unknown, and old readings are marked stale.
 
 The Mac app refreshes at your selected 1-, 5-, or 15-minute interval, with slower checks in Low Power Mode. Mobile apps check on opening, pull to refresh, and once per minute while active. iOS controls background execution, so readings can become stale when the app is closed.
 

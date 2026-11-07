@@ -133,8 +133,7 @@ public enum DirectProviderClient {
         case .grokBot:
             let data: Data
             do {
-                data = try await SubscriptionHTTP.shared.request(URL(string: "https://api2.cursor.sh/aiserver.v1.DashboardService/GetSandUsageStatus")!,
-                    bearer: credential.accessToken, body: Data("{}".utf8), headers: ["Connect-Protocol-Version": "1"])
+                data = try await cursorUsageRPC("GetSandUsageStatus", credential: credential)
             } catch SubscriptionError.status(let code) where [403,404,415].contains(code) {
                 data = try await SubscriptionHTTP.shared.request(URL(string: "https://cursor.com/api/dashboard/get-sand-usage-status")!,
                     body: Data("{}".utf8), headers: cursorDashboardHeaders(credential))
@@ -143,6 +142,16 @@ public enum DirectProviderClient {
             credential.plan = json["grokPlanLabel"] as? String ?? credential.plan
             var parsed = try SubscriptionSnapshot.grokBot(data)
             if let included = parsed.first, included.remainingPercent == 0, !included.resetIsPast(at: Date()),
+               case .prepaid(let balance, _, _, let start) = included.extraUsage {
+                let billingCredential = credential
+                async let prepaid = try? cursorUsageRPC("GetUserPrepaidBilling", credential: billingCredential)
+                async let period = try? cursorUsageRPC("GetCurrentPeriodUsage", credential: billingCredential)
+                if let prepaid = await prepaid, let period = await period,
+                   let monthly = try? SubscriptionSnapshot.grokBotMonthlySpending(prepaid: prepaid, periodUsage: period) {
+                    parsed[0].extraUsage = .prepaid(balanceCents: balance, spendingLimitReached: monthly.remainingCents == 0,
+                        monthly: monthly, sharedPeriodStart: start)
+                }
+            } else if let included = parsed.first, included.remainingPercent == 0, !included.resetIsPast(at: Date()),
                included.extraUsage == .onDemand(enabled: true, spendingLimitReached: false),
                let headers = try? cursorDashboardHeaders(credential),
                let summary = try? await SubscriptionHTTP.shared.request(URL(string: "https://cursor.com/api/usage-summary")!, headers: headers),
@@ -152,6 +161,11 @@ public enum DirectProviderClient {
             windows = parsed
         }
         return (credential, windows)
+    }
+
+    private static func cursorUsageRPC(_ method: String, credential: SubscriptionCredential) async throws -> Data {
+        try await SubscriptionHTTP.shared.request(URL(string: "https://api2.cursor.sh/aiserver.v1.DashboardService/\(method)")!,
+            bearer: credential.accessToken, body: Data("{}".utf8), headers: ["Connect-Protocol-Version": "1"])
     }
 
     private static func cursorDashboardHeaders(_ credential: SubscriptionCredential) throws -> [String: String] {

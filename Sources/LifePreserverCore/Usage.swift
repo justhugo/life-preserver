@@ -22,22 +22,51 @@ public enum Provider: String, CaseIterable, Codable, Identifiable, Sendable {
 public enum ConnectionKind: String, Codable, Sendable { case codex, claudeOAuth, grokOAuth, grokBotOAuth, manual, demo }
 
 public enum ExtraUsageStatus: Codable, Equatable, Sendable {
-    case prepaid(balanceCents: Int?, spendingLimitReached: Bool)
+    case prepaid(balanceCents: Int?, spendingLimitReached: Bool, monthly: MonthlySpending? = nil, sharedPeriodStart: Date? = nil)
     case onDemand(enabled: Bool, spendingLimitReached: Bool)
     case sharedPrepaid
 
+    public struct MonthlySpending: Codable, Equatable, Sendable {
+        public let usedCents: Int
+        public let limitCents: Int
+
+        init(usedCents: Int, limitCents: Int) {
+            self.usedCents = usedCents
+            self.limitCents = limitCents
+        }
+
+        public var remainingCents: Int { usedCents >= 0 && limitCents > usedCents ? limitCents - usedCents : 0 }
+    }
+
+    private static func money(_ cents: Int) -> String {
+        (Decimal(cents) / 100).formatted(.currency(code: "USD"))
+    }
+
     var text: String {
         switch self {
-        case .prepaid(let balanceCents, let spendingLimitReached):
-            let balance = balanceCents.map { (Decimal($0) / 100).formatted(.currency(code: "USD")) }
-            let label = balance.map { "Extra credits · \($0) remaining" } ?? "Extra credits"
-            return spendingLimitReached ? "\(label) · Spending limit reached" : label
+        case .prepaid(let balance, let spendingLimitReached, let monthly, _):
+            if spendingLimitReached || monthly?.remainingCents == 0 { return "Monthly spending limit reached" }
+            if let monthly {
+                if let balance {
+                    return "Extra usage · \(Self.money(min(balance, monthly.remainingCents))) available"
+                }
+                return "\(Self.money(monthly.remainingCents)) left under monthly limit"
+            }
+            return balance.map { "Prepaid balance · \(Self.money($0))" } ?? "Check shared Grok credits"
         case .onDemand(let enabled, let spendingLimitReached):
             if spendingLimitReached { return "On-demand · Monthly limit reached" }
             return enabled ? "On-demand enabled" : "On-demand off"
         case .sharedPrepaid:
             return "Check shared Grok credits"
         }
+    }
+
+    var detail: String? {
+        guard case .prepaid(let balance, let limitReached, let monthly, _) = self else { return nil }
+        if let monthly {
+            return "\(Self.money(monthly.usedCents)) used of \(Self.money(monthly.limitCents)) monthly limit"
+        }
+        return limitReached ? balance.map { "Prepaid balance · \(Self.money($0))" } : nil
     }
 }
 
@@ -141,13 +170,33 @@ public struct ProviderAccount: Identifiable, Codable, Equatable, Sendable {
         error != nil || isStale(at: now) ? .unknown : pressure
     }
 
-    public func extraUsageLink(at now: Date = Date()) -> (title: String, destination: URL)? {
-        guard provider == .grok || provider == .grokBot, kind != .demo, kind != .manual,
-              error == nil, !isStale(at: now), let included = overviewWindows.first,
-              included.remainingPercent == 0 else { return nil }
-        let grokBilling = provider == .grok || included.extraUsage == .sharedPrepaid
+    public func extraUsageLink(grokBot: ProviderAccount? = nil, at now: Date = Date()) -> (title: String, detail: String?, destination: URL)? {
+        guard provider == .grok || provider == .grokBot, let included = exhaustedWindow(at: now) else { return nil }
+        let status = sharedBilling(from: grokBot, for: included, at: now) ?? included.extraUsage
+        let grokBilling: Bool
+        switch status {
+        case .prepaid, .sharedPrepaid: grokBilling = true
+        default: grokBilling = provider == .grok
+        }
         let destination = grokBilling ? URL(string: "https://grok.com/dashboard/billing")! : URL(string: "https://cursor.com/dashboard/spending")!
-        return (included.extraUsage?.text ?? "Check billing", destination)
+        return (status?.text ?? "Check billing", status?.detail, destination)
+    }
+
+    private func exhaustedWindow(at now: Date) -> UsageWindow? {
+        guard kind != .demo, kind != .manual, error == nil, !isStale(at: now),
+              let included = overviewWindows.first, included.remainingPercent == 0 else { return nil }
+        return included
+    }
+
+    private func sharedBilling(from bot: ProviderAccount?, for grokWindow: UsageWindow, at now: Date) -> ExtraUsageStatus? {
+        // The providers use different account identifiers. Match the active shared period and
+        // a reported, positive wallet balance before using the Bot's monthly reading on Grok.
+        guard provider == .grok, let bot, bot.provider == .grokBot, let botWindow = bot.exhaustedWindow(at: now),
+              case .prepaid(let balance?, _, nil, let start?) = grokWindow.extraUsage, balance > 0,
+              case .prepaid(let botBalance?, _, .some, let botStart?) = botWindow.extraUsage,
+              botBalance == balance, botStart == start,
+              let reset = grokWindow.resetsAt, reset == botWindow.resetsAt else { return nil }
+        return botWindow.extraUsage
     }
 }
 
