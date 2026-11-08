@@ -30,4 +30,23 @@ final class SessionSecurityTests: XCTestCase {
         XCTAssertEqual(SessionRenewalDecision.evaluate(credential: fresh, rejectedToken: "old-token", leaseOwner: nil, leaseUntil: nil, at: now), .useCurrent)
         XCTAssertEqual(SessionRenewalDecision.evaluate(credential: fresh, rejectedToken: "new-token", leaseOwner: nil, leaseUntil: nil, at: now), .acquireLease)
     }
+
+    func testRenewalOriginOnlyNamesTheRemoteOwnerOfTheCurrentLease() throws {
+        let original = SessionRenewalOrigin(owner: "tablet", revision: "session", label: "  Living Room\niPad  ")
+        let origin = try JSONDecoder().decode(SessionRenewalOrigin.self, from: JSONEncoder().encode(original))
+        XCTAssertEqual(origin.recoveryLabel(leaseOwner: "tablet", revision: "session", localOwner: "phone"), "Living Room iPad")
+        XCTAssertNil(origin.recoveryLabel(leaseOwner: "tablet", revision: "session", localOwner: "tablet"))
+        XCTAssertNil(origin.recoveryLabel(leaseOwner: "phone", revision: "session", localOwner: "mac"))
+        XCTAssertNil(origin.recoveryLabel(leaseOwner: "tablet", revision: "reconnected", localOwner: "mac"))
+        XCTAssertNil(origin.recoveryLabel(leaseOwner: nil, revision: "session", localOwner: "mac"))
+    }
+
+    func testInterruptedRenewalProvidesMacRecoveryWithOrWithoutADeviceLabel() {
+        let named = SessionSharingError.interrupted(device: "Living Room iPad").localizedDescription
+        let unnamed = SessionSharingError.interrupted(device: nil).localizedDescription
+        XCTAssertTrue(named.contains("Living Room iPad"))
+        XCTAssertTrue(named.contains("Settings → Accounts"))
+        XCTAssertTrue(unnamed.contains("Settings → Accounts"))
+        XCTAssertFalse(unnamed.contains("Open Life Preserver there"))
+    }
 }

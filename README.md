@@ -15,7 +15,7 @@ See [mobile setup and troubleshooting](docs/MOBILE.md).
 
 ## Usage overview
 
-Provider cards show remaining percentages, reset times, and plan names. OpenAI and Claude show **5-hour session** and **Weekly** meters; Grok and Grok Bot have separate weekly meters. Expand a card for additional limits and connection details. Missing values remain unknown, and old readings are marked stale.
+Provider cards show remaining percentages, reset times, and plan names. OpenAI and Claude show **5-hour session** and **Weekly** meters. Expand a card for additional limits and connection details. At a confirmed 0% remaining, the expanded Grok and Grok Bot cards show available billing details and a link to check billing. Missing values remain unknown, and old readings are marked stale.
 
 The Mac app refreshes at your selected 1-, 5-, or 15-minute interval, with slower checks in Low Power Mode. Mobile apps check on opening, pull to refresh, and once per minute while active. iOS controls background execution, so readings can become stale when the app is closed.
 
@@ -30,7 +30,7 @@ On the Mac, ⌘, opens Settings, ⌘R refreshes, and ⌘Q quits. Right-click the
 | Grok | Native browser OAuth + PKCE | Included SuperGrok subscription allowance |
 | Grok Bot | Cursor browser challenge/poll | Separate included weekly allowance on its Cursor account |
 
-All four providers use native HTTPS requests and app-owned sign-ins. Grok Bot uses its associated Cursor account, including a linked SuperGrok subscription; Life Preserver does not change subscription links. API billing, on-demand spending, and trial credit budgets are excluded.
+All four providers use native HTTPS requests and app-owned sign-ins. Grok Bot uses its associated Cursor account, including a linked SuperGrok subscription. API billing and trial credit budgets are excluded from the subscription meters.
 
 The integrations use provider-native public clients and consumer compatibility endpoints. Consent pages can name Claude Code or Grok Build. Public distribution requires suitable provider authorization and signing. See [provider integrations](docs/PROVIDERS.md) and [release status](docs/RELEASE.md).
 

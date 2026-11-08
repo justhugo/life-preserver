@@ -1,6 +1,7 @@
 import CloudKit
 import CryptoKit
 import Foundation
+import UserNotifications
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -13,6 +14,14 @@ import LifePreserverCore
 @MainActor
 public final class SharedProviderSessions {
     public static let shared = SharedProviderSessions()
+    public static let deviceLabelKey = "sessionRenewalDeviceLabel"
+    public static var defaultDeviceLabel: String {
+        #if canImport(UIKit)
+        UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+        #else
+        "Mac"
+        #endif
+    }
     private let cloud = PrivateUsageCloud()
     private var database: CKDatabase { CKContainer(identifier: PrivateUsageCloud.containerIdentifier).privateCloudDatabase }
     private let directoryID = CKRecord.ID(recordName: "provider-directory-v1")
@@ -20,6 +29,10 @@ public final class SharedProviderSessions {
         if let value = UserDefaults.standard.string(forKey: "sessionRenewalDeviceID") { return value }
         let value = UUID().uuidString
         UserDefaults.standard.set(value, forKey: "sessionRenewalDeviceID"); return value
+    }
+    private var deviceLabel: String {
+        let label = SessionRenewalOrigin.cleanLabel(UserDefaults.standard.string(forKey: Self.deviceLabelKey) ?? "")
+        return label.isEmpty ? Self.defaultDeviceLabel : label
     }
     public init() {}
     public func ownerID() async throws -> String { try await cloud.ownerID() }
@@ -61,17 +74,24 @@ public final class SharedProviderSessions {
         let existing = try await fetch(id(account.id))
         if existing != nil && !replacing { return }
         let record = existing ?? CKRecord(recordType: "ProviderSessionV1", recordID: id(account.id))
+        let previousRevision = record["revision"] as? String
         let keyID = UUID().uuidString
         let key = try SharedSessionKeychain.key(owner: owner, id: keyID, create: true)
         record["provider"] = account.provider.rawValue; record["keyID"] = keyID
         record["revision"] = UUID().uuidString
-        record["leaseOwner"] = nil; record["leaseUntil"] = nil
+        clearLease(record)
         record["payload"] = try SessionEncryption.seal(credential, key: key, context: context(record))
-        do { try await save(record) }
+        do {
+            try await save(record)
+            if let previousRevision { SessionRenewalAlerts.clear(account: account.id, revision: previousRevision) }
+        }
         catch let error as CKError where error.code == .serverRecordChanged && !replacing {
             // Another device seeded the same account first. Never overwrite its rotated session.
             guard try await contains(account.id) else { throw error }
         }
+    }
+    private func clearLease(_ record: CKRecord) {
+        record["leaseOwner"] = nil; record["leaseUntil"] = nil; record["leaseOrigin"] = nil
     }
     private func context(_ record: CKRecord) throws -> String {
         guard let provider = record["provider"] as? String, Provider(rawValue: provider) != nil,
@@ -89,31 +109,47 @@ public final class SharedProviderSessions {
         let revision: String
         let credential: SubscriptionCredential
     }
+    private func discard(_ pending: PendingRenewal, account: UUID, journal: String) throws {
+        SessionRenewalAlerts.clear(account: account, revision: pending.revision)
+        // A concurrent reconnect and renewal may have already written a newer journal.
+        guard let data = try SharedSessionKeychain.read(journal, sync: false),
+              try JSONDecoder().decode(PendingRenewal.self, from: data).revision == pending.revision else { return }
+        try SharedSessionKeychain.remove(journal, sync: false)
+    }
     /// A failed save must never discard a successfully rotated refresh token.
     /// A local Keychain journal lets this device complete the same transaction later.
-    private func complete(_ pending: PendingRenewal, record: CKRecord, owner: String, journal: String) async throws -> SubscriptionCredential {
+    private func complete(_ pending: PendingRenewal, record: CKRecord, account: UUID, owner: String, journal: String) async throws -> SubscriptionCredential {
         var current = record
         for _ in 0..<4 {
             guard current["revision"] as? String == pending.revision,
                   current["leaseOwner"] as? String == deviceID,
                   let keyID = current["keyID"] as? String else {
-                try SharedSessionKeychain.remove(journal, sync: false)
+                try discard(pending, account: account, journal: journal)
                 throw SessionSharingError.changed
             }
             let key = try SharedSessionKeychain.key(owner: owner, id: keyID)
             current["revision"] = UUID().uuidString
             current["payload"] = try SessionEncryption.seal(pending.credential, key: key, context: context(current))
-            current["leaseOwner"] = nil; current["leaseUntil"] = nil
+            clearLease(current)
             do {
                 try await save(current)
-                try SharedSessionKeychain.remove(journal, sync: false)
-                return pending.credential
             } catch let error as CKError where error.code == .serverRecordChanged {
-                guard let next = try await fetch(record.recordID) else { throw SessionSharingError.unavailable }
+                let latest: CKRecord?
+                do { latest = try await fetch(record.recordID) }
+                catch { throw SessionSharingError.pendingSync }
+                guard let next = latest else {
+                    try discard(pending, account: account, journal: journal)
+                    throw SessionSharingError.unavailable
+                }
                 current = next
+                continue
+            } catch {
+                throw SessionSharingError.pendingSync
             }
+            try discard(pending, account: account, journal: journal)
+            return pending.credential
         }
-        throw SessionSharingError.changed
+        throw SessionSharingError.pendingSync
     }
     public func credential(for account: SharedProviderAccount, rejectedToken: String? = nil,
                            renew: @escaping (SubscriptionCredential) async throws -> SubscriptionCredential) async throws -> SubscriptionCredential {
@@ -121,26 +157,34 @@ public final class SharedProviderSessions {
         let journal = "pending|\(owner)|\(account.id.uuidString)"
         for attempt in 0..<20 {
             try Task.checkCancellation()
-            guard var record = try await fetch(id(account.id)) else { throw SessionSharingError.unavailable }
+            let fetched = try await fetch(id(account.id))
             if let data = try SharedSessionKeychain.read(journal, sync: false) {
                 let pending = try JSONDecoder().decode(PendingRenewal.self, from: data)
-                if record["leaseOwner"] as? String == deviceID, record["revision"] as? String == pending.revision {
-                    return try await complete(pending, record: record, owner: owner, journal: journal)
+                if let record = fetched, record["leaseOwner"] as? String == deviceID, record["revision"] as? String == pending.revision {
+                    return try await complete(pending, record: record, account: account.id, owner: owner, journal: journal)
                 }
-                try SharedSessionKeychain.remove(journal, sync: false)
+                try discard(pending, account: account.id, journal: journal)
             }
+            guard var record = fetched else { throw SessionSharingError.unavailable }
             let credential = try decrypt(record, account: account, owner: owner)
+            let leaseOwner = record["leaseOwner"] as? String
+            let revision = record["revision"] as? String
             let decision = SessionRenewalDecision.evaluate(credential: credential, rejectedToken: rejectedToken,
-                leaseOwner: record["leaseOwner"] as? String, leaseUntil: record["leaseUntil"] as? Date, at: Date())
+                leaseOwner: leaseOwner, leaseUntil: record["leaseUntil"] as? Date, at: Date())
             switch decision {
             case .useCurrent: return credential
             case .wait:
                 guard attempt < 19 else { throw SessionSharingError.renewing }
                 try await Task.sleep(for: .seconds(1)); continue
-            case .recover: throw SessionSharingError.interrupted
+            case .recover:
+                let origin = (record["leaseOrigin"] as? Data).flatMap { try? JSONDecoder().decode(SessionRenewalOrigin.self, from: $0) }
+                throw SessionSharingError.interrupted(device: origin?.recoveryLabel(leaseOwner: leaseOwner, revision: revision, localOwner: deviceID))
             case .acquireLease: break
             }
-            record["leaseOwner"] = deviceID; record["leaseUntil"] = Date().addingTimeInterval(90)
+            guard let revision else { throw SessionSharingError.invalidSession }
+            let origin = SessionRenewalOrigin(owner: deviceID, revision: revision, label: deviceLabel)
+            record["leaseOwner"] = origin.owner; record["leaseUntil"] = Date().addingTimeInterval(90)
+            record["leaseOrigin"] = try JSONEncoder().encode(origin)
             do { record = try await save(record) }
             catch let error as CKError where error.code == .serverRecordChanged { continue }
             // After acquiring a lease, do not cancel between token exchange and durable
@@ -153,10 +197,10 @@ public final class SharedProviderSessions {
                 defer { if background != .invalid { UIApplication.shared.endBackgroundTask(background) } }
                 #endif
                 let fresh = try await renew(credential)
-                guard let revision = leasedRecord["revision"] as? String else { throw SessionSharingError.invalidSession }
                 let pending = PendingRenewal(revision: revision, credential: fresh)
                 try SharedSessionKeychain.write(JSONEncoder().encode(pending), account: journal, sync: false)
-                return try await self.complete(pending, record: leasedRecord, owner: owner, journal: journal)
+                await SessionRenewalAlerts.schedule(account: account, revision: revision, deviceLabel: origin.label)
+                return try await self.complete(pending, record: leasedRecord, account: account.id, owner: owner, journal: journal)
             }
             return try await transaction.value
         }
@@ -168,5 +212,47 @@ public final class SharedProviderSessions {
             do { try deleted.get() }
             catch let error as CKError where error.code == .unknownItem { return }
         }
+    }
+}
+
+public enum SessionRenewalAlerts {
+    public static let preferenceKey = "sessionRenewalAlertsEnabled"
+    public static let identifierPrefix = "sign-in-renewal-"
+
+    public static func updatePreference(_ enabled: Bool) async {
+        let center = UNUserNotificationCenter.current()
+        if enabled {
+            if (try? await center.requestAuthorization(options: [.alert])) != true {
+                UserDefaults.standard.set(false, forKey: preferenceKey)
+            }
+            return
+        }
+        let pending = await center.pendingNotificationRequests().map(\.identifier)
+        let delivered = await center.deliveredNotifications().map(\.request.identifier)
+        guard !UserDefaults.standard.bool(forKey: preferenceKey) else { return }
+        center.removePendingNotificationRequests(withIdentifiers: pending.filter { $0.hasPrefix(identifierPrefix) })
+        center.removeDeliveredNotifications(withIdentifiers: delivered.filter { $0.hasPrefix(identifierPrefix) })
+    }
+
+    static func schedule(account: SharedProviderAccount, revision: String, deviceLabel: String) async {
+        guard UserDefaults.standard.bool(forKey: preferenceKey) else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Finish syncing your \(account.provider.name) sign-in"
+        content.body = "Open Life Preserver on \(deviceLabel) to finish syncing your renewed sign-in."
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 120, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier(account.id, revision), content: content, trigger: trigger)
+        try? await UNUserNotificationCenter.current().add(request)
+        if !UserDefaults.standard.bool(forKey: preferenceKey) { clear(account: account.id, revision: revision) }
+    }
+
+    static func clear(account: UUID, revision: String) {
+        let ids = [identifier(account, revision)]
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
+    private static func identifier(_ account: UUID, _ revision: String) -> String {
+        "\(identifierPrefix)\(account.uuidString)-\(revision)"
     }
 }

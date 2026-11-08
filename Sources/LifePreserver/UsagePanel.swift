@@ -20,8 +20,9 @@ struct UsagePanel: View {
                     else {
                         SectionLabel(text: "USAGE REMAINING").padding(.horizontal, 2)
                         VStack(spacing: 9) {
+                            let grokBot = store.visibleAccounts.first { $0.provider == .grokBot }
                             ForEach(store.visibleAccounts) { account in
-                                ProviderCard(account: account, expanded: expanded.contains(account.id), toggle: {
+                                ProviderCard(account: account, grokBot: grokBot, expanded: expanded.contains(account.id), toggle: {
                                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                                         if expanded.contains(account.id) { expanded.remove(account.id) }
                                         else { expanded.insert(account.id) }
@@ -110,6 +111,7 @@ struct UsagePanel: View {
 
 struct ProviderCard: View {
     let account: ProviderAccount
+    let grokBot: ProviderAccount?
     let expanded: Bool
     let toggle: () -> Void
 
@@ -165,6 +167,18 @@ struct ProviderCard: View {
                         }.font(.system(size: 10))
                         .help(window.resetsAt.map { $0.formatted(date: .complete, time: .shortened) } ?? "The provider did not supply a reset time")
                     }
+                    if account.provider == .grok || account.provider == .grokBot {
+                        TimelineView(.periodic(from: .now, by: 30)) { context in
+                            if let billing = account.extraUsageLink(grokBot: grokBot, at: context.date) {
+                                Link(destination: billing.destination) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Label(billing.title, systemImage: "arrow.up.right").foregroundStyle(Palette.sea)
+                                        if let detail = billing.detail { Text(detail).foregroundStyle(Palette.secondary) }
+                                    }.fixedSize(horizontal: false, vertical: true)
+                                }.font(.system(size: 10)).help("Open billing in your browser")
+                            }
+                        }
+                    }
                     HStack(spacing: 4) {
                         Image(systemName: account.kind == .manual ? "pencil" : "lock.shield").font(.system(size: 9))
                         Text(account.kind == .demo ? "Sample data" : "Live subscription usage")
@@ -200,7 +214,7 @@ struct QuotaBar: View {
                 Text(window.title).font(.system(size: 10)).foregroundStyle(Palette.secondary).lineLimit(1).minimumScaleFactor(0.85)
                 Spacer(minLength: 5)
                 if let remaining = window.remainingPercent {
-                    Text("\(Int(remaining.rounded(.down)))%")
+                    Text(UsageWindow.formatRemainingPercent(remaining))
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundStyle(uncertain ? Palette.secondary : Palette.pressure(window.pressure))
                 } else { Text("Not reported").font(.system(size: 10)).foregroundStyle(Palette.secondary) }
@@ -219,7 +233,7 @@ struct QuotaBar: View {
                 }
             }.frame(height: 4)
         }.accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(window.title): \(window.remainingPercent.map { "\(Int($0)) percent remaining" } ?? "not reported")\(uncertain ? ", last known reading" : "")")
+            .accessibilityLabel("\(window.title): \(window.remainingPercentDescription)\(uncertain ? ", last known reading" : "")")
     }
 }
 

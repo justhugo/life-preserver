@@ -1,12 +1,15 @@
 import SwiftUI
 #if SWIFT_PACKAGE
 import LifePreserverCore
+import LifePreserverSync
 #endif
 
 struct SettingsView: View {
     @ObservedObject var store: AppStore
     @State private var removing: ProviderAccount?
     @State private var busyRemoving = false
+    @State private var hoveredReconnect: UUID?
+    @AppStorage(SessionRenewalAlerts.preferenceKey) private var renewalAlerts = false
     var body: some View {
         HStack(spacing: 0) {
             sidebar
@@ -59,7 +62,7 @@ struct SettingsView: View {
             Spacer()
             VStack(alignment: .leading, spacing: 5) {
                 Text("Keeps you afloat.").font(.system(size: 11, design: .serif)).foregroundStyle(Palette.secondary)
-                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0")").font(.system(size: 7, weight: .medium)).tracking(0.5).foregroundStyle(Palette.secondary.opacity(0.7))
+                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")").font(.system(size: 7, weight: .medium)).tracking(0.5).foregroundStyle(Palette.secondary.opacity(0.7))
             }.padding(.horizontal, 9).padding(.bottom, 21)
         }.padding(.horizontal, 12).frame(width: 167).background(Palette.wash.opacity(0.45))
             .overlay(alignment: .trailing) { Rectangle().fill(Palette.line).frame(width: 0.7) }
@@ -104,7 +107,17 @@ struct SettingsView: View {
                             }
                             Spacer(minLength: 3)
                             if account.error != nil || account.kind == .manual {
-                                Button("Reconnect") { store.connect(account.provider, replacing: account.id) }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Palette.sea)
+                                Button {
+                                    store.connect(account.provider, replacing: account.id)
+                                } label: {
+                                    Text("Reconnect").underline(hoveredReconnect == account.id)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(Palette.sea)
+                                .fixedSize()
+                                .onHover { hoveredReconnect = $0 ? account.id : nil }
+                                .help("Sign in to \(account.provider.name) again")
+                                .disabled(store.connecting)
                             }
                             Button { removing = account } label: { Image(systemName: "minus.circle").font(.system(size: 13)) }
                                 .buttonStyle(QuietButtonStyle()).help("Remove \(account.provider.name)").accessibilityLabel("Remove \(account.provider.name)")
@@ -156,6 +169,15 @@ struct SettingsView: View {
                 settingRow("Low-usage alerts", subtitle: "When a live limit crosses 90% used.") {
                     Toggle("Low-usage alerts", isOn: Binding(get: { store.notificationsEnabled }, set: { store.setNotifications($0) })).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
+                if store.mobileSharing.configured {
+                    Divider().overlay(Palette.line)
+                    settingRow("Sign-in renewal alerts", subtitle: "Remind you when this Mac has a renewed sign-in waiting to sync.") {
+                        Toggle("Sign-in renewal alerts", isOn: $renewalAlerts).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                            .onChange(of: renewalAlerts) { _, enabled in
+                                Task { await SessionRenewalAlerts.updatePreference(enabled) }
+                            }
+                    }
+                }
                 Divider().overlay(Palette.line)
                 settingRow("Check live usage", subtitle: "Slows down automatically in Low Power Mode.") {
                     Picker("Refresh interval", selection: $store.refreshMinutes) {
@@ -163,7 +185,7 @@ struct SettingsView: View {
                     }.labelsHidden().frame(width: 115)
                 }
             }.surfaceCard()
-            Text("Alerts use live subscription readings. Sample data never sends alerts.")
+            Text("Low-usage alerts use live subscription readings. Sample data never sends alerts.")
                 .font(.system(size: 10)).foregroundStyle(Palette.secondary).lineSpacing(3)
             Button("Explore with sample data") { store.demo = true; store.onShowPanel?() }
                 .buttonStyle(.plain).font(.system(size: 12, weight: .medium)).foregroundStyle(Palette.sea)

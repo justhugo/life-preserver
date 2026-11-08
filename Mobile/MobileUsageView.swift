@@ -34,6 +34,8 @@ private enum MobilePalette {
 struct MobileUsageView: View {
     @ObservedObject var store: MobileStore
     @AppStorage("appearance") private var appearance = "system"
+    @AppStorage(SharedProviderSessions.deviceLabelKey) private var deviceLabel = ""
+    @AppStorage(SessionRenewalAlerts.preferenceKey) private var renewalAlerts = false
     @State private var showSettings = CommandLine.arguments.contains("--show-settings")
     private var selectedColorScheme: ColorScheme? {
         appearance == "light" ? .light : appearance == "dark" ? .dark : nil
@@ -48,8 +50,9 @@ struct MobileUsageView: View {
                     if !store.accounts.isEmpty {
                         TimelineView(.periodic(from: .now, by: 30)) { context in
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 310), spacing: 12)], alignment: .leading, spacing: 12) {
+                                let grokBot = store.accounts.first { $0.provider == .grokBot }
                                 ForEach(store.accounts) { item in
-                                    MobileAccountCard(account: item, now: context.date)
+                                    MobileAccountCard(account: item, grokBot: grokBot, now: context.date)
                                 }
                             }
                         }
@@ -99,6 +102,21 @@ struct MobileUsageView: View {
                                     Text("Light").tag("light")
                                     Text("Dark").tag("dark")
                                 }.pickerStyle(.segmented)
+                            }
+                            Divider().overlay(MobilePalette.line)
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Sign-in renewal").font(.headline)
+                                TextField("Device label", text: $deviceLabel, prompt: Text(SharedProviderSessions.defaultDeviceLabel))
+                                    .textFieldStyle(.roundedBorder)
+                                    .accessibilityLabel("Device label")
+                                Text("Choose a label to recognize this device in renewal messages.")
+                                    .font(.caption).foregroundStyle(MobilePalette.secondary)
+                                Toggle("Sign-in renewal alerts", isOn: $renewalAlerts)
+                                    .onChange(of: renewalAlerts) { _, enabled in
+                                        Task { await SessionRenewalAlerts.updatePreference(enabled) }
+                                    }
+                                Text("Get a reminder when this device has a renewed sign-in waiting to sync.")
+                                    .font(.caption).foregroundStyle(MobilePalette.secondary)
                             }
                             Divider().overlay(MobilePalette.line)
                             Text("Version \(appVersion)").font(.caption).foregroundStyle(MobilePalette.secondary)
@@ -156,6 +174,7 @@ struct MobileUsageView: View {
 
 private struct MobileAccountCard: View {
     let account: ProviderAccount
+    let grokBot: ProviderAccount?
     let now: Date
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -212,6 +231,14 @@ private struct MobileAccountCard: View {
                             if let reset = window.resetsAt { Text(reset.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(MobilePalette.secondary) }
                         }
                     }
+                    if let billing = account.extraUsageLink(grokBot: grokBot, at: now) {
+                        Link(destination: billing.destination) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(billing.title, systemImage: "arrow.up.right").foregroundStyle(MobilePalette.sea)
+                                if let detail = billing.detail { Text(detail).foregroundStyle(MobilePalette.secondary) }
+                            }.frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                        }.font(.caption).accessibilityHint("Opens billing in your browser")
+                    }
                     if let date = account.updatedAt { Text("Provider checked \(date.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(MobilePalette.secondary) }
                     else { Text("Provider hasn’t returned a reading yet.").font(.caption).foregroundStyle(MobilePalette.secondary) }
                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -226,7 +253,7 @@ private struct MobileAccountCard: View {
             HStack {
                 Text(window.title).font(.caption).foregroundStyle(MobilePalette.secondary).lineLimit(1).minimumScaleFactor(0.85)
                 Spacer(minLength: 5)
-                Text(window.remainingPercent.map { "\(Int($0.rounded(.down)))%" } ?? "Not reported")
+                Text(window.remainingPercent.map { UsageWindow.formatRemainingPercent($0) } ?? "Not reported")
                     .font(.footnote.weight(.semibold)).monospacedDigit()
                     .foregroundStyle(MobilePalette.meter(window, stale: stale)).fixedSize()
             }
@@ -244,7 +271,7 @@ private struct MobileAccountCard: View {
                 }
             }.frame(height: 5)
         }.accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(window.title), \(window.remainingPercent.map { "\(Int($0.rounded(.down))) percent remaining" } ?? "unknown"), \(stale ? "stale reading, " : "")\(window.resetText(at: now))")
+            .accessibilityLabel("\(window.title), \(window.remainingPercentDescription), \(stale ? "stale reading, " : "")\(window.resetText(at: now))")
     }
 }
 

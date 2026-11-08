@@ -1,11 +1,13 @@
 import SwiftUI
 #if SWIFT_PACKAGE
 import LifePreserverCore
+import LifePreserverSync
 #endif
 
 struct MobileSharingView: View {
     @ObservedObject var sharing: MobileSharing
     let accounts: [ProviderAccount]
+    @AppStorage(SharedProviderSessions.deviceLabelKey) private var deviceLabel = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -22,6 +24,10 @@ struct MobileSharingView: View {
             if !sharing.configured {
                 Text("This Mac build runs locally. The mobile setup guide explains how to install the iCloud-enabled build with your Apple developer account.")
                     .font(.system(size: 11)).foregroundStyle(Palette.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            if sharing.configured {
+                TextField("Device label", text: $deviceLabel, prompt: Text(SharedProviderSessions.defaultDeviceLabel))
+                    .help("This label helps identify your Mac in sign-in renewal messages on your devices.")
             }
             HStack(spacing: 9) {
                 if sharing.busy { ProgressView().controlSize(.small) }

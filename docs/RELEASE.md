@@ -1,6 +1,12 @@
 # Release status
 
-Life Preserver 1.2.0 is available as source for native macOS, iPhone, and iPad apps. Each device polls provider APIs directly, using app-owned sign-ins shared securely through iCloud.
+Life Preserver 1.3.0 runs on macOS, iPhone, and iPad. Each device polls provider APIs directly, using app-owned sign-ins shared securely through iCloud.
+
+## Changes in 1.3.0
+
+- The Mac Accounts screen has a bordered Reconnect button with hover feedback and keyboard focus.
+- Interrupted sign-in renewal can name the device that started it. An optional alert reminds you when that device has a renewed sign-in waiting to sync.
+- Meters show `<1%` for a positive remainder below 1%. At a confirmed 0%, the expanded Grok and Grok Bot cards show extra-usage details, including available monthly spending room when reported, and a billing link.
 
 ## Included
 
@@ -12,7 +18,7 @@ Life Preserver 1.2.0 is available as source for native macOS, iPhone, and iPad a
 
 ## Validation
 
-The current architecture has passed 37 core/sync tests, signed Mac and mobile device builds, and local Mac and iOS simulator builds. Live requests to all four providers have been verified on Mac, iPhone, and iPad. GitHub's automated workflow checks tests, builds, app metadata, and bundled notices.
+GitHub's automated workflow checks the core and sync tests, Mac and iOS simulator builds, app metadata, and bundled notices. The build and signing guide describes how to verify live provider requests on signed development builds.
 
 ## Source downloads
 
@@ -29,3 +35,5 @@ The development builds use Apple development signing and CloudKit Development. P
 5. Broader accessibility, account-switching, interrupted-renewal, offline, and long-running reliability validation.
 
 Personal signing overrides remain in the ignored local configuration. The repository includes a privacy manifest for UserDefaults access and license notices bundled with both apps.
+
+Deploy the optional `leaseOrigin` Bytes field on the `ProviderSessionV1` record type to CloudKit Production before distributing builds that record renewal device labels.

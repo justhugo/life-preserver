@@ -122,6 +122,7 @@ public enum DirectProviderClient {
                 if parsed.isEmpty { parsed = [fallback] }
                 else { parsed[0].usedPercent = fallback.usedPercent; parsed[0].resetsAt = parsed[0].resetsAt ?? fallback.resetsAt }
             }
+            if !parsed.isEmpty, parsed[0].remainingPercent != 0 { parsed[0].extraUsage = nil }
             windows = parsed
             if credential.metadataCheckedAt.map({ Date().timeIntervalSince($0) > 86_400 }) ?? true,
                let data = try? await SubscriptionHTTP.shared.request(URL(string: "https://cli-chat-proxy.grok.com/v1/settings")!, bearer: credential.accessToken, headers: headers),
@@ -132,19 +133,47 @@ public enum DirectProviderClient {
         case .grokBot:
             let data: Data
             do {
-                data = try await SubscriptionHTTP.shared.request(URL(string: "https://api2.cursor.sh/aiserver.v1.DashboardService/GetSandUsageStatus")!,
-                    bearer: credential.accessToken, body: Data("{}".utf8), headers: ["Connect-Protocol-Version": "1"])
+                data = try await cursorUsageRPC("GetSandUsageStatus", credential: credential)
             } catch SubscriptionError.status(let code) where [403,404,415].contains(code) {
-                guard let subject = ProviderTokens.claims(credential.accessToken)["sub"] as? String,
-                      let user = subject.split(separator: "|").last, !user.isEmpty,
-                      user.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-")).contains($0) }) else { throw SubscriptionError.authentication }
                 data = try await SubscriptionHTTP.shared.request(URL(string: "https://cursor.com/api/dashboard/get-sand-usage-status")!,
-                    body: Data("{}".utf8), headers: ["Cookie": "WorkosCursorSessionToken=\(user)%3A%3A\(credential.accessToken)", "Origin": "https://cursor.com"])
+                    body: Data("{}".utf8), headers: cursorDashboardHeaders(credential))
             }
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             credential.plan = json["grokPlanLabel"] as? String ?? credential.plan
-            windows = try SubscriptionSnapshot.grokBot(data)
+            var parsed = try SubscriptionSnapshot.grokBot(data)
+            if let included = parsed.first, included.remainingPercent == 0, !included.resetIsPast(at: Date()),
+               case .prepaid(let balance, _, _, let start) = included.extraUsage {
+                let billingCredential = credential
+                async let prepaid = try? cursorUsageRPC("GetUserPrepaidBilling", credential: billingCredential)
+                async let period = try? cursorUsageRPC("GetCurrentPeriodUsage", credential: billingCredential)
+                if let prepaid = await prepaid, let period = await period,
+                   let monthly = try? SubscriptionSnapshot.grokBotMonthlySpending(prepaid: prepaid, periodUsage: period) {
+                    parsed[0].extraUsage = .prepaid(balanceCents: balance, spendingLimitReached: monthly.remainingCents == 0,
+                        monthly: monthly, sharedPeriodStart: start)
+                }
+            } else if let included = parsed.first, included.remainingPercent == 0, !included.resetIsPast(at: Date()),
+               included.extraUsage == .onDemand(enabled: true, spendingLimitReached: false),
+               let headers = try? cursorDashboardHeaders(credential),
+               let summary = try? await SubscriptionHTTP.shared.request(URL(string: "https://cursor.com/api/usage-summary")!, headers: headers),
+               (try? SubscriptionSnapshot.cursorOnDemandLimitReached(summary)) == true {
+                parsed[0].extraUsage = .onDemand(enabled: true, spendingLimitReached: true)
+            }
+            windows = parsed
         }
         return (credential, windows)
+    }
+
+    private static func cursorUsageRPC(_ method: String, credential: SubscriptionCredential) async throws -> Data {
+        try await SubscriptionHTTP.shared.request(URL(string: "https://api2.cursor.sh/aiserver.v1.DashboardService/\(method)")!,
+            bearer: credential.accessToken, body: Data("{}".utf8), headers: ["Connect-Protocol-Version": "1"])
+    }
+
+    private static func cursorDashboardHeaders(_ credential: SubscriptionCredential) throws -> [String: String] {
+        guard let subject = ProviderTokens.claims(credential.accessToken)["sub"] as? String,
+              let user = subject.split(separator: "|").last, !user.isEmpty,
+              user.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-")).contains($0) }) else {
+            throw SubscriptionError.authentication
+        }
+        return ["Cookie": "WorkosCursorSessionToken=\(user)%3A%3A\(credential.accessToken)", "Origin": "https://cursor.com"]
     }
 }
